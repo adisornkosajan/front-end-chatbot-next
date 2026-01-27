@@ -49,6 +49,15 @@ export default function ConnectionsPage() {
   const [editingPlatform, setEditingPlatform] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<any>({});
   const [mounted, setMounted] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [whatsAppFormData, setWhatsAppFormData] = useState({
+    phoneNumberId: '',
+    accessToken: '',
+    displayName: '',
+    phoneNumber: '',
+    wabaId: '',
+    verifiedName: '',
+  });
 
   // รอให้ component mount เสร็จก่อน (hydration)
   useEffect(() => {
@@ -135,12 +144,47 @@ export default function ConnectionsPage() {
   ];
 
   const handleConnectPlatform = async (platform: Platform) => {
-    if (platform === 'facebook') {
+    if (platform === 'whatsapp') {
+      // แสดง modal สำหรับ WhatsApp manual configuration
+      setShowWhatsAppModal(true);
+    } else if (platform === 'facebook') {
       await handleMetaConnect('facebook');
     } else if (platform === 'instagram') {
       await handleMetaConnect('instagram');
-    } else if (platform === 'whatsapp') {
-      await handleMetaConnect('whatsapp');
+    }
+  };
+
+  const handleWhatsAppManualSubmit = async () => {
+    try {
+      setLoading(true);
+      
+      const result = await apiFetch(
+        '/api/integrations/whatsapp/manual',
+        token!,
+        {
+          method: 'POST',
+          body: JSON.stringify(whatsAppFormData),
+        },
+      );
+
+      alert(result.message || 'WhatsApp connected successfully!');
+      setShowWhatsAppModal(false);
+      setWhatsAppFormData({
+        phoneNumberId: '',
+        accessToken: '',
+        displayName: '',
+        phoneNumber: '',
+        wabaId: '',
+        verifiedName: '',
+      });
+      
+      // โหลดข้อมูลใหม่
+      await loadConnectedPlatforms();
+    } catch (error: any) {
+      console.error('WhatsApp manual config error:', error);
+      alert(error.message || 'Failed to connect WhatsApp. Please check your credentials.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -702,6 +746,153 @@ export default function ConnectionsPage() {
           </div>
         )}
       </div>
+      
+      {/* WhatsApp Manual Configuration Modal */}
+      {showWhatsAppModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-600 to-green-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
+                    <span className="text-3xl">💬</span>
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Connect WhatsApp Business</h2>
+                    <p className="text-green-100 text-sm">Manual Configuration (Test Mode)</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowWhatsAppModal(false)}
+                  className="text-white hover:text-gray-200 transition"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <div className="text-sm text-blue-800">
+                    <p className="font-bold mb-1">📱 How to get WhatsApp credentials:</p>
+                    <ol className="list-decimal list-inside space-y-1 ml-2">
+                      <li>Go to <a href="https://developers.facebook.com" target="_blank" className="underline font-semibold">Meta for Developers</a></li>
+                      <li>Create an app and add &quot;WhatsApp&quot; product</li>
+                      <li>Get your Phone Number ID and Access Token</li>
+                      <li>Set up webhook to: <code className="bg-blue-100 px-2 py-0.5 rounded">https://june-mammary-abigail.ngrok-free.dev/api/webhooks/whatsapp</code></li>
+                    </ol>
+                    <p className="mt-2"><a href="/WHATSAPP-SETUP-GUIDE.md" target="_blank" className="underline font-bold">📖 View Full Setup Guide</a></p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-800 mb-2">
+                  Phone Number ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition text-gray-900"
+                  placeholder="123456789012345"
+                  value={whatsAppFormData.phoneNumberId}
+                  onChange={(e) => setWhatsAppFormData({ ...whatsAppFormData, phoneNumberId: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-800 mb-2">
+                  Access Token <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition text-gray-900 font-mono text-sm"
+                  placeholder="EAAB..."
+                  rows={3}
+                  value={whatsAppFormData.accessToken}
+                  onChange={(e) => setWhatsAppFormData({ ...whatsAppFormData, accessToken: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-800 mb-2">
+                    Display Name
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition text-gray-900"
+                    placeholder="My Business WhatsApp"
+                    value={whatsAppFormData.displayName}
+                    onChange={(e) => setWhatsAppFormData({ ...whatsAppFormData, displayName: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-800 mb-2">
+                    Phone Number
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition text-gray-900"
+                    placeholder="+66812345678"
+                    value={whatsAppFormData.phoneNumber}
+                    onChange={(e) => setWhatsAppFormData({ ...whatsAppFormData, phoneNumber: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-800 mb-2">
+                    WABA ID
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition text-gray-900"
+                    placeholder="111222333444555"
+                    value={whatsAppFormData.wabaId}
+                    onChange={(e) => setWhatsAppFormData({ ...whatsAppFormData, wabaId: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-800 mb-2">
+                    Verified Name
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition text-gray-900"
+                    placeholder="My Business"
+                    value={whatsAppFormData.verifiedName}
+                    onChange={(e) => setWhatsAppFormData({ ...whatsAppFormData, verifiedName: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleWhatsAppManualSubmit}
+                  disabled={loading || !whatsAppFormData.phoneNumberId || !whatsAppFormData.accessToken}
+                  className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Connecting...' : '✅ Connect WhatsApp'}
+                </button>
+                <button
+                  onClick={() => setShowWhatsAppModal(false)}
+                  className="px-6 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-xl transition-all duration-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
