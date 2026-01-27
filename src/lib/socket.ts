@@ -5,18 +5,24 @@ let socket: Socket | null = null;
 let isConnecting = false;
 
 export function connectSocket(token: string): Socket {
+  console.log('═══════════════════════════════════════');
+  console.log('🔌 connectSocket() called');
+  console.log('Token:', token ? token.substring(0, 20) + '...' : 'NO TOKEN');
+  console.log('Current socket state:', socket?.connected ? 'CONNECTED' : 'DISCONNECTED');
+  console.log('═══════════════════════════════════════');
+
   if (socket?.connected) {
-    console.log('Socket already connected');
+    console.log('✅ Socket already connected, reusing:', socket.id);
     return socket;
   }
 
   if (isConnecting) {
-    console.log('Socket connection in progress...');
+    console.log('⏳ Socket connection in progress...');
     return socket!;
   }
 
   isConnecting = true;
-  console.log('Connecting to WebSocket...', getWsUrl());
+  console.log('🚀 Creating new socket connection to:', getWsUrl());
 
   try {
     socket = io(getWsUrl(), {
@@ -28,18 +34,34 @@ export function connectSocket(token: string): Socket {
     });
 
     socket.on('connect', () => {
-      console.log('✅ WebSocket connected:', socket?.id);
+      console.log('═══════════════════════════════════════');
+      console.log('✅ SOCKET CONNECTED SUCCESSFULLY!');
+      console.log('Socket ID:', socket?.id);
+      console.log('Transport:', socket?.io?.engine?.transport?.name);
+      console.log('═══════════════════════════════════════');
       isConnecting = false;
     });
 
     socket.on('connect_error', (error) => {
-      console.error('❌ WebSocket connection error:', error.message);
+      console.error('═══════════════════════════════════════');
+      console.error('❌ SOCKET CONNECTION ERROR!');
+      console.error('Error:', error.message);
+      console.error('Stack:', error.stack);
+      console.error('═══════════════════════════════════════');
       isConnecting = false;
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('👋 WebSocket disconnected:', reason);
+      console.log('═══════════════════════════════════════');
+      console.log('👋 SOCKET DISCONNECTED!');
+      console.log('Reason:', reason);
+      console.log('═══════════════════════════════════════');
       isConnecting = false;
+    });
+
+    // Debug: Listen to ALL events
+    socket.onAny((eventName, ...args) => {
+      console.log('📡 Socket event received:', eventName, args);
     });
 
     return socket;

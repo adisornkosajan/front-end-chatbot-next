@@ -4,27 +4,33 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 
-export default function Home() {
-  const router = useRouter();
+export default function AuthLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const token = useAuthStore((s) => s.token);
   const isHydrated = useAuthStore((s) => s.isHydrated);
-  const [isChecking, setIsChecking] = useState(true);
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Wait for Zustand to hydrate
   useEffect(() => {
-    if (!isHydrated) return;
-
-    // Redirect based on auth status
-    if (token) {
-      router.push('/dashboard/inbox');
-    } else {
-      router.push('/auth/login');
+    if (isHydrated) {
+      setIsLoading(false);
     }
-    
-    setIsChecking(false);
-  }, [token, isHydrated, router]);
+  }, [isHydrated]);
 
-  // Show loading while checking
-  if (isChecking || !isHydrated) {
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (!isLoading && token) {
+      console.log('Already logged in, redirecting to dashboard...');
+      router.push('/dashboard/inbox');
+    }
+  }, [token, router, isLoading]);
+
+  // Show loading while hydrating
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-100">
         <div className="text-center">
@@ -35,5 +41,10 @@ export default function Home() {
     );
   }
 
-  return null;
+  // Don't render auth pages if user is already logged in
+  if (token) {
+    return null;
+  }
+
+  return <>{children}</>;
 }

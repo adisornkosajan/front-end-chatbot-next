@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useChatStore } from '@/store/chat.store';
 import { apiFetch } from '@/lib/api';
 import { API_CONFIG } from '@/lib/config';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 type Platform = 'facebook' | 'instagram' | 'whatsapp';
 
@@ -37,6 +38,8 @@ type SyncResult = {
 
 export default function ConnectionsPage() {
   const token = useAuthStore((s) => s.token);
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(null);
   const [connectedPlatforms, setConnectedPlatforms] = useState<ConnectedPlatform[]>([]);
   const [facebookPages, setFacebookPages] = useState<FacebookPage[]>([]);
@@ -45,11 +48,53 @@ export default function ConnectionsPage() {
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [editingPlatform, setEditingPlatform] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<any>({});
+  const [mounted, setMounted] = useState(false);
+
+  // รอให้ component mount เสร็จก่อน (hydration)
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // ตรวจสอบ authentication
+  useEffect(() => {
+    if (mounted && !token) {
+      console.warn('No token found, redirecting to login');
+      router.push('/auth/login');
+    }
+  }, [mounted, token, router]);
 
   // โหลด connected platforms เมื่อ component mount
   useEffect(() => {
-    loadConnectedPlatforms();
-  }, [token]);
+    if (mounted && token) {
+      loadConnectedPlatforms();
+    }
+  }, [token, mounted]);
+
+  // ตรวจสอบ OAuth callback
+  useEffect(() => {
+    if (!mounted) return;
+
+    const oauthStatus = searchParams.get('oauth');
+    const errorMessage = searchParams.get('message');
+
+    if (oauthStatus === 'success') {
+      console.log('OAuth success, token:', token ? 'exists' : 'missing');
+      
+      // OAuth สำเร็จ - โหลดข้อมูลใหม่
+      if (token) {
+        loadConnectedPlatforms();
+      }
+      
+      // ลบ query params ออกจาก URL
+      window.history.replaceState({}, '', '/dashboard/connections');
+    } else if (oauthStatus === 'error') {
+      alert(`OAu{
+      console.warn('loadConnectedPlatforms: No token available');
+      return;
+    }ed: ${errorMessage || 'Unknown error'}`);
+      window.history.replaceState({}, '', '/dashboard/connections');
+    }
+  }, [searchParams, mounted, token]);
 
   const loadConnectedPlatforms = async () => {
     if (!token) return;
@@ -111,48 +156,9 @@ export default function ConnectionsPage() {
       
       console.log('OAuth URL:', url);
 
-      // 2. เปิด OAuth dialog
-      const width = 600;
-      const height = 700;
-      const left = window.screen.width / 2 - width / 2;
-      const top = window.screen.height / 2 - height / 2;
-      
-      const authWindow = window.open(
-        url,
-        'MetaAuth',
-        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-      );
-
-      // 3. รอให้ OAuth เสร็จ (polling หรือใช้ localStorage)
-      const checkAuth = setInterval(async () => {
-        try {
-          // ถ้า window ปิดแล้ว
-          if (authWindow?.closed) {
-            clearInterval(checkAuth);
-            setLoading(false);
-            
-            // โหลดข้อมูลใหม่
-            await loadConnectedPlatforms();
-            
-            // แสดงรายการ pages/accounts ตาม type
-            if (type === 'facebook') {
-              await loadFacebookPages();
-            } else if (type === 'instagram') {
-              await loadInstagramAccounts();
-            } else if (type === 'whatsapp') {
-              await loadWhatsAppNumbers();
-            }
-          }
-        } catch (error) {
-          console.error('Error checking auth:', error);
-        }
-      }, 1000);
-
-      // หยุด polling หลัง 5 นาที
-      setTimeout(() => {
-        clearInterval(checkAuth);
-        setLoading(false);
-      }, 300000);
+      // 2. Redirect ไปที่ OAuth URL (เต็มหน้าจอ)
+      // Backend จะ redirect กลับมาพร้อม query params ?oauth=success
+      window.location.href = url;
       
     } catch (error: any) {
       console.error('OAuth error:', error);
@@ -246,14 +252,26 @@ export default function ConnectionsPage() {
     try {
       const action = page.connected ? 'disconnect' : 'connect';
       
+      // ใช้ platform ที่เลือกอยู่ในการเรียก API
+      const platformType = selectedPlatform || 'facebook';
+      
       await apiFetch(
-        `/api/integrations/facebook/${pageId}/${action}`,
+        `/api/integrations/${platformType}/${pageId}/${action}`,
         token!,
         { method: 'POST' },
       );
 
-      // รีโหลด pages เพื่ออัพเดทสถานะที่ถูกต้อง
-      await loadFacebookPages();
+      // รีโหลด pages/accounts ตาม platform
+      if (platformType === 'facebook') {
+        await loadFacebookPages();
+      } else if (platformType === 'instagram') {
+        await loadInstagramAccounts();
+      } else if (platformType === 'whatsapp') {
+        await loadWhatsAppNumbers();
+      }
+      
+      // อัปเดต connected platforms list
+      await loadConnectedPlatforms();
     } catch (error: any) {
       console.error('Error toggling connection:', error);
       alert(error.message || 'Failed to toggle connection. Please try again.');
@@ -356,6 +374,18 @@ export default function ConnectionsPage() {
         return 'from-gray-600 to-gray-700';
     }
   };
+
+  // แสดง loading ขณะรอ hydration หรือตรวจสอบ auth
+  if (!mounted || !token) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-y-auto">
