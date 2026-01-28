@@ -82,78 +82,124 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      <aside className="w-80 border-r border-gray-200 bg-white shadow-xl flex flex-col">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-md">
+    <div className="flex h-screen bg-gray-50">
+      {/* Sidebar */}
+      <aside className="w-72 border-r border-gray-200 bg-white flex flex-col shadow-sm">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-600">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg">
               <span className="text-2xl">💬</span>
             </div>
-            <h1 className="text-2xl font-bold text-white">Omni Chat</h1>
+            <div>
+              <h1 className="text-xl font-bold text-white">Omni Chat</h1>
+              <p className="text-xs text-blue-100">SaaS Platform</p>
+            </div>
           </div>
-          <p className="text-sm text-blue-100 font-medium">Manage all conversations</p>
         </div>
         
-        {/* Navigation Menu */}
-        <div className="p-4 border-b border-gray-200 bg-gray-50">
-          <nav className="space-y-2">
+        {/* Main Navigation */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4 space-y-1">
+            <div className="text-xs font-bold text-gray-400 uppercase tracking-wider px-3 py-2">
+              หลัก
+            </div>
             <Link
               href="/dashboard/inbox"
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-semibold ${
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
                 pathname?.includes('/inbox') || pathname === '/dashboard'
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg transform scale-105'
-                  : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'
+                  ? 'bg-blue-50 text-blue-600 font-semibold'
+                  : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <span className="text-2xl">💬</span>
-              <span className="text-base">Inbox</span>
-              {(pathname?.includes('/inbox') || pathname === '/dashboard') && (
-                <span className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse"></span>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+              <span>กล่องข้อความ</span>
+              {useChatStore.getState().conversations?.length > 0 && (
+                <span className="ml-auto bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                  {useChatStore.getState().conversations?.length}
+                </span>
               )}
             </Link>
+
+            <div className="text-xs font-bold text-gray-400 uppercase tracking-wider px-3 py-2 mt-6">
+              เชื่อมต่อบริการ
+            </div>
             <Link
               href="/dashboard/connections"
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-semibold ${
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
                 pathname?.includes('/connections')
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg transform scale-105'
-                  : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'
+                  ? 'bg-blue-50 text-blue-600 font-semibold'
+                  : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <span className="text-2xl">🔌</span>
-              <span className="text-base">Connections</span>
-              {pathname?.includes('/connections') && (
-                <span className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse"></span>
-              )}
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>จัดการแพลตฟอร์ม</span>
             </Link>
-          </nav>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4 px-2">
-              <h2 className="font-bold text-gray-700 text-sm uppercase tracking-wider">Conversations</h2>
-              <div className="flex items-center gap-2">
-                <span className="text-xs bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-3 py-1 rounded-full font-bold shadow-md">
-                  {useChatStore.getState().conversations?.length || 0}
-                </span>
-              </div>
+
+            <div className="text-xs font-bold text-gray-400 uppercase tracking-wider px-3 py-2 mt-6">
+              การตั้งค่า
             </div>
-            <ConversationSidebar />
+            <Link
+              href="/dashboard/settings"
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
+                pathname?.includes('/settings')
+                  ? 'bg-blue-50 text-blue-600 font-semibold'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>ตั้งค่าทั่วไป</span>
+            </Link>
+
+            <Link
+              href="/dashboard/ai-settings"
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
+                pathname?.includes('/ai-settings')
+                  ? 'bg-blue-50 text-blue-600 font-semibold'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              <span>ผู้ช่วย AI</span>
+            </Link>
+
+            <Link
+              href="/dashboard/team"
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
+                pathname?.includes('/team')
+                  ? 'bg-blue-50 text-blue-600 font-semibold'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <span>จัดการทีม</span>
+            </Link>
           </div>
         </div>
 
-        {/* User Info Footer */}
+        {/* User Profile Footer */}
         <div className="border-t border-gray-200 p-4 bg-gray-50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-md">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow">
               {useAuthStore.getState().user?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-gray-900 truncate">
+              <p className="text-sm font-semibold text-gray-900 truncate">
                 {useAuthStore.getState().user?.name || 'User'}
               </p>
               <p className="text-xs text-gray-500 truncate">
-                {useAuthStore.getState().user?.email || 'user@example.com'}
+                {useAuthStore.getState().user?.email || ''}
               </p>
             </div>
             <button
@@ -161,8 +207,8 @@ export default function DashboardLayout({
                 useAuthStore.getState().logout();
                 window.location.href = '/auth/login';
               }}
-              className="text-gray-400 hover:text-red-600 transition-colors"
-              title="Logout"
+              className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded-lg hover:bg-red-50"
+              title="ออกจากระบบ"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -172,7 +218,8 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      <main className="flex-1 bg-white overflow-hidden">{children}</main>
+      {/* Main Content */}
+      <main className="flex-1 bg-gray-50 overflow-hidden">{children}</main>
     </div>
   );
 }

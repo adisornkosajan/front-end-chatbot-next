@@ -9,15 +9,26 @@ import { apiFetch } from '@/lib/api';
 import { API_CONFIG } from '@/lib/config';
 import MessageInput from '@/components/MessageInput';
 
+type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+};
+
 export default function ConversationPage() {
   const { id } = useParams();
   const token = useAuthStore((s) => s.token);
+  const currentUser = useAuthStore((s) => s.user);
   const messages = useChatStore((s) => s.messages);
   const setMessages = useChatStore((s) => s.setMessages);
   const addMessage = useChatStore((s) => s.addMessage);
   const conversations = useChatStore((s) => s.conversations);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [orgUsers, setOrgUsers] = useState<User[]>([]);
+  const [showAssignMenu, setShowAssignMenu] = useState(false);
+  const [assigning, setAssigning] = useState(false);
 
   // Get conversation at the top level (before any conditional returns)
   const conversation = conversations.find((c) => c.id === id);
@@ -25,6 +36,46 @@ export default function ConversationPage() {
   const formatMessageTime = (date: string) => {
     const d = new Date(date);
     return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Load organization users
+  useEffect(() => {
+    if (!token) return;
+    
+    // TODO: Create API endpoint to get organization users
+    // For now, mock data
+    setOrgUsers([
+      { id: currentUser?.id || '1', name: currentUser?.name || 'You', email: currentUser?.email || '', role: 'ADMIN' },
+    ]);
+  }, [token, currentUser]);
+
+  // Assign conversation to user
+  const handleAssign = async (userId: string | null) => {
+    if (!token || !id) return;
+    
+    setAssigning(true);
+    try {
+      await apiFetch(
+        `/api/conversations/${id}/assign`,
+        token,
+        {
+          method: 'POST',
+          body: JSON.stringify({ agentId: userId }),
+        }
+      );
+      
+      alert(userId ? 'มอบหมายการสนทนาสำเร็จ!' : 'ยกเลิกการมอบหมายสำเร็จ!');
+      setShowAssignMenu(false);
+      
+      // Reload conversations
+      const updatedConvs = await apiFetch(API_CONFIG.ENDPOINTS.CONVERSATIONS.LIST, token);
+      useChatStore.getState().setConversations(updatedConvs);
+    } catch (err: any) {
+      console.error('Failed to assign:', err);
+      alert('ไม่สามารถมอบหมายได้: ' + (err.message || 'Unknown error'));
+    } finally {
+      setAssigning(false);
+    }
   };
 
   useEffect(() => {
@@ -111,7 +162,77 @@ export default function ConversationPage() {
                 }`}>
                   {conversation.status || 'Active'}
                 </span>
+                {conversation.assignedAgentId && (
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                    </svg>
+                    มอบหมายแล้ว
+                  </span>
+                )}
               </div>
+            </div>
+
+            {/* Assign Button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowAssignMenu(!showAssignMenu)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg font-semibold transition-all"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                มอบหมาย
+              </button>
+
+              {/* Assign Dropdown */}
+              {showAssignMenu && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-2xl border border-gray-200 z-50">
+                  <div className="p-3 border-b border-gray-200">
+                    <h3 className="font-bold text-gray-900">มอบหมายให้</h3>
+                    <p className="text-xs text-gray-500 mt-1">เลือกสมาชิกในทีมเพื่อดูแลการสนทนานี้</p>
+                  </div>
+                  <div className="p-2 max-h-64 overflow-y-auto">
+                    {orgUsers.map((user) => (
+                      <button
+                        key={user.id}
+                        onClick={() => handleAssign(user.id)}
+                        disabled={assigning}
+                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg transition-all disabled:opacity-50"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+                          {user.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 text-left">
+                          <p className="text-sm font-semibold text-gray-900">{user.name}</p>
+                          <p className="text-xs text-gray-500">{user.email}</p>
+                        </div>
+                        {conversation.assignedAgentId === user.id && (
+                          <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                    
+                    {conversation.assignedAgentId && (
+                      <>
+                        <div className="border-t border-gray-200 my-2"></div>
+                        <button
+                          onClick={() => handleAssign(null)}
+                          disabled={assigning}
+                          className="w-full flex items-center gap-3 px-3 py-2 hover:bg-red-50 text-red-600 rounded-lg transition-all disabled:opacity-50"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          <span className="text-sm font-semibold">ยกเลิกการมอบหมาย</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
