@@ -42,11 +42,19 @@ export default function ConversationPage() {
   useEffect(() => {
     if (!token) return;
     
-    // TODO: Create API endpoint to get organization users
-    // For now, mock data
-    setOrgUsers([
-      { id: currentUser?.id || '1', name: currentUser?.name || 'You', email: currentUser?.email || '', role: 'ADMIN' },
-    ]);
+    // Fetch team members from API
+    apiFetch(API_CONFIG.ENDPOINTS.USERS.TEAM, token)
+      .then((users) => {
+        console.log('✅ Team members loaded:', users);
+        setOrgUsers(users);
+      })
+      .catch((error) => {
+        console.error('❌ Failed to load team members:', error);
+        // Fallback to current user only
+        setOrgUsers([
+          { id: currentUser?.id || '1', name: currentUser?.name || 'You', email: currentUser?.email || '', role: 'ADMIN' },
+        ]);
+      });
   }, [token, currentUser]);
 
   // Assign conversation to user
@@ -64,7 +72,7 @@ export default function ConversationPage() {
         }
       );
       
-      alert(userId ? 'มอบหมายการสนทนาสำเร็จ!' : 'ยกเลิกการมอบหมายสำเร็จ!');
+      alert(userId ? 'Conversation assigned successfully!' : 'Assignment removed successfully!');
       setShowAssignMenu(false);
       
       // Reload conversations
@@ -72,7 +80,7 @@ export default function ConversationPage() {
       useChatStore.getState().setConversations(updatedConvs);
     } catch (err: any) {
       console.error('Failed to assign:', err);
-      alert('ไม่สามารถมอบหมายได้: ' + (err.message || 'Unknown error'));
+      alert('Failed to assign: ' + (err.message || 'Unknown error'));
     } finally {
       setAssigning(false);
     }
@@ -97,23 +105,64 @@ export default function ConversationPage() {
   }, [id, token, setMessages]);
 
   useEffect(() => {
-    const socket = getSocket();
-    if (!socket) {
-      console.warn('Socket not connected yet');
-      return;
+    const setupSocketListener = () => {
+      const socket = getSocket();
+      if (!socket) {
+        console.warn('⏳ Socket not ready yet in conversation page, will retry...');
+        return null;
+      }
+
+      const handleNewMessage = (payload: any) => {
+        console.log('═══════════════════════════════════════');
+        console.log('📨 NEW MESSAGE EVENT IN CONVERSATION PAGE!');
+        console.log('Conversation ID from event:', payload.conversationId);
+        console.log('Current conversation ID:', id);
+        console.log('Message:', payload.message);
+        console.log('═══════════════════════════════════════');
+        
+        if (payload.conversationId === id) {
+          console.log('✅ Message belongs to current conversation, adding to list');
+          addMessage(payload.message);
+          
+          // Auto-scroll to bottom
+          setTimeout(() => {
+            const messagesContainer = document.querySelector('.messages-container');
+            if (messagesContainer) {
+              messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+          }, 100);
+        } else {
+          console.log('⏭️ Message for different conversation, ignoring');
+        }
+      };
+
+      console.log('🎧 Registering message:new listener for conversation:', id);
+      socket.on('message:new', handleNewMessage);
+
+      return () => {
+        console.log('🧹 Cleaning up message:new listener for conversation:', id);
+        socket.off('message:new', handleNewMessage);
+      };
+    };
+
+    // Try to setup listener
+    const cleanup = setupSocketListener();
+    
+    // If socket not ready, retry after 500ms
+    if (!cleanup) {
+      const retryTimeout = setTimeout(() => {
+        const retryCleanup = setupSocketListener();
+        if (retryCleanup) {
+          return retryCleanup;
+        }
+      }, 500);
+
+      return () => {
+        clearTimeout(retryTimeout);
+      };
     }
 
-    const handleNewMessage = (payload: any) => {
-      if (payload.conversationId === id) {
-        addMessage(payload.message);
-      }
-    };
-
-    socket.on('message:new', handleNewMessage);
-
-    return () => {
-      socket.off('message:new', handleNewMessage);
-    };
+    return cleanup;
   }, [id, addMessage]);
 
   if (loading) {
@@ -167,7 +216,7 @@ export default function ConversationPage() {
                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                     </svg>
-                    มอบหมายแล้ว
+                    Assigned
                   </span>
                 )}
               </div>
@@ -182,15 +231,15 @@ export default function ConversationPage() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
-                มอบหมาย
+                Assign
               </button>
 
               {/* Assign Dropdown */}
               {showAssignMenu && (
                 <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-2xl border border-gray-200 z-50">
                   <div className="p-3 border-b border-gray-200">
-                    <h3 className="font-bold text-gray-900">มอบหมายให้</h3>
-                    <p className="text-xs text-gray-500 mt-1">เลือกสมาชิกในทีมเพื่อดูแลการสนทนานี้</p>
+                    <h3 className="font-bold text-gray-900">Assign To</h3>
+                    <p className="text-xs text-gray-500 mt-1">Select a team member to handle this conversation</p>
                   </div>
                   <div className="p-2 max-h-64 overflow-y-auto">
                     {orgUsers.map((user) => (
@@ -226,7 +275,7 @@ export default function ConversationPage() {
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
-                          <span className="text-sm font-semibold">ยกเลิกการมอบหมาย</span>
+                          <span className="text-sm font-semibold">Remove Assignment</span>
                         </button>
                       </>
                     )}
@@ -239,7 +288,7 @@ export default function ConversationPage() {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 messages-container">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">

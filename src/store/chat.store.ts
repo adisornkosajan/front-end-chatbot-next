@@ -4,6 +4,12 @@ type Message = {
   id: string;
   content: string;
   senderType: string;
+  conversationId?: string;
+  platformMessageId?: string;
+  contentType?: string;
+  sentAt?: string;
+  createdAt: string;
+  updatedAt?: string;
 };
 
 type ChatState = {

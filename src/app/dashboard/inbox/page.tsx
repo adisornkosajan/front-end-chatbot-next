@@ -89,7 +89,7 @@ export default function InboxPage() {
         {/* Header */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold text-gray-900">กล่องข้อความ</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Inbox</h1>
             <button className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-all">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -101,7 +101,7 @@ export default function InboxPage() {
           <div className="relative">
             <input
               type="text"
-              placeholder="ค้นหาการสนทนา..."
+              placeholder="Search conversations..."
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             />
             <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -114,13 +114,13 @@ export default function InboxPage() {
         <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600">
-              ทั้งหมด <span className="font-bold text-gray-900">{conversations?.length || 0}</span> การสนทนา
+              <span className="font-bold text-gray-900">{conversations?.length || 0}</span> Conversations
             </span>
-            <select className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
-              <option>ทั้งหมด</option>
-              <option>ยังไม่ได้อ่าน</option>
-              <option>เปิดอยู่</option>
-              <option>ปิดแล้ว</option>
+            <select className="text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer">
+              <option value="all">All</option>
+              <option value="unread">Unread</option>
+              <option value="open">Open</option>
+              <option value="closed">Closed</option>
             </select>
           </div>
         </div>
@@ -132,8 +132,8 @@ export default function InboxPage() {
           ) : (
             <div className="p-8 text-center">
               <div className="text-6xl mb-4">💬</div>
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">ยังไม่มีการสนทนา</h3>
-              <p className="text-gray-500 text-sm">การสนทนาจะแสดงที่นี่เมื่อมีลูกค้าติดต่อเข้ามา</p>
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">No Conversations</h3>
+              <p className="text-gray-500 text-sm">Conversations will appear here when customers contact you</p>
             </div>
           )}
         </div>
@@ -151,10 +151,10 @@ export default function InboxPage() {
             <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-40 h-40 bg-blue-400 rounded-full opacity-20 blur-3xl"></div>
           </div>
           <h2 className="text-3xl font-bold text-gray-800 mb-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            เลือกการสนทนา
+            Select a Conversation
           </h2>
           <p className="text-gray-600 text-lg leading-relaxed">
-            เลือกการสนทนาจากรายการด้านซ้ายเพื่อเริ่มต้นแชทกับลูกค้า
+            Choose a conversation from the list to start chatting with customers
           </p>
           <div className="mt-8 p-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border-2 border-blue-100">
             <div className="flex items-center justify-center gap-3 text-blue-600">

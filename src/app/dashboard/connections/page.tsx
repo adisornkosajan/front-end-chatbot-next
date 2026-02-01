@@ -145,8 +145,8 @@ export default function ConnectionsPage() {
 
   const handleConnectPlatform = async (platform: Platform) => {
     if (platform === 'whatsapp') {
-      // แสดง modal สำหรับ WhatsApp manual configuration
-      setShowWhatsAppModal(true);
+      // ใช้ OAuth Flow เหมือน Facebook/Instagram
+      await handleMetaConnect('whatsapp');
     } else if (platform === 'facebook') {
       await handleMetaConnect('facebook');
     } else if (platform === 'instagram') {
@@ -261,29 +261,39 @@ export default function ConnectionsPage() {
   };
 
   const loadWhatsAppNumbers = async () => {
-    setSelectedPlatform('whatsapp');
-    setLoading(true);
-
     try {
-      const numbers = await apiFetch(
-        '/api/integrations/whatsapp/numbers',
-        token!,
-      );
+      setLoading(true);
+      setSelectedPlatform('whatsapp');
       
-      // แปลงเป็น format เดียวกับ FacebookPage
-      const whatsappPages = numbers.map((num: any) => ({
+      const numbers = await apiFetch('/api/integrations/whatsapp/numbers', token!);
+      
+      console.log('WhatsApp numbers response:', numbers);
+      
+      // แปลงเป็น format เดียวกับ Facebook pages
+      const formattedNumbers = numbers.map((num: any) => ({
         id: num.id,
         name: num.displayName || num.phoneNumber,
-        category: 'WhatsApp Business',
+        category: `WABA: ${num.wabaName || num.wabaId || 'Unknown'}`,
+        phoneNumber: num.phoneNumber,
         connected: num.connected,
         platformId: num.platformId,
       }));
       
-      setFacebookPages(whatsappPages);
+      console.log('Formatted numbers:', formattedNumbers);
+      
+      if (formattedNumbers.length === 0) {
+        alert('No WhatsApp Business Numbers found\n\nPlease use "Manual Setup" instead');
+        setSelectedPlatform(null);
+        setShowWhatsAppModal(true);
+        return;
+      }
+      
+      setFacebookPages(formattedNumbers);
     } catch (error: any) {
-      console.error('Error loading WhatsApp numbers:', error);
-      alert(error.message || 'Failed to load WhatsApp numbers');
-      setFacebookPages([]);
+      console.error('Failed to load WhatsApp numbers:', error);
+      alert('ไม่สามารถโหลด WhatsApp Business Accounts ได้\n\nข้อผิดพลาด: ' + (error.message || 'Unknown error') + '\n\nโปรดใช้ตัวเลือก "กรอกข้อมูลเอง" แทน');
+      setSelectedPlatform(null);
+      setShowWhatsAppModal(true);
     } finally {
       setLoading(false);
     }
@@ -650,7 +660,7 @@ export default function ConnectionsPage() {
                   {selectedPlatform === 'whatsapp' && 'WhatsApp Numbers'}
                 </h2>
                 <p className="text-gray-600 text-sm mt-1">
-                  {selectedPlatform === 'facebook' && 'Select pages to connect with Omni Chat'}
+                  {selectedPlatform === 'facebook' && 'Select pages to connect with Talk-V AI'}
                   {selectedPlatform === 'instagram' && 'Select Instagram business accounts to connect'}
                   {selectedPlatform === 'whatsapp' && 'Select WhatsApp business numbers to connect'}
                 </p>

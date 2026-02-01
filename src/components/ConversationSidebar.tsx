@@ -108,10 +108,11 @@ export default function ConversationSidebar() {
                   {c.status && (
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
                       c.status === 'open' ? 'bg-green-100 text-green-700' :
-                      c.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-gray-100 text-gray-700'
+                      c.status === 'pending' ? 'bg-blue-100 text-blue-700' :
+                      c.status === 'closed' ? 'bg-gray-100 text-gray-700' :
+                      'bg-purple-100 text-purple-700'
                     }`}>
-                      {c.status}
+                      {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
                     </span>
                   )}
                 </div>

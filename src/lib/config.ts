@@ -14,6 +14,12 @@ export const API_CONFIG = {
       ASSIGN: (id: string) => `/api/conversations/${id}/assign`,
       SYNC_FACEBOOK: (platformId: string) => `/api/conversations/sync/facebook/${platformId}`,
     },
+    USERS: {
+      TEAM: '/api/users/team',
+      INVITE: '/api/users/team/invite',
+      INVITATIONS: '/api/users/team/invitations',
+      REVOKE_INVITATION: (id: string) => `/api/users/team/invitations/${id}`,
+    },
   },
 };
 

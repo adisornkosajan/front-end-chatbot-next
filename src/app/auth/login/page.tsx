@@ -56,7 +56,7 @@ export default function LoginPage() {
             <span className="text-4xl">💬</span>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-          <p className="text-gray-600 font-medium">Sign in to continue to Omni Chat</p>
+          <p className="text-gray-600 font-medium">Sign in to continue to Talk-V AI</p>
         </div>
         
         {error && (
@@ -120,15 +120,6 @@ export default function LoginPage() {
               </>
             )}
           </button>
-
-          <div className="text-center mt-6">
-            <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
-              <Link href="/auth/register" className="text-blue-600 hover:text-blue-700 font-bold hover:underline">
-                Create account
-              </Link>
-            </p>
-          </div>
         </div>
       </div>
     </div>

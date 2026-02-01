@@ -1,0 +1,348 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useAuthStore } from '@/store/auth.store';
+import { apiFetch } from '@/lib/api';
+import { API_CONFIG } from '@/lib/config';
+
+type TeamMember = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
+};
+
+type Invitation = {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  expiresAt: string;
+  createdAt: string;
+};
+
+export default function TeamPage() {
+  const token = useAuthStore((s) => s.token);
+  const currentUser = useAuthStore((s) => s.user);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('user');
+  const [inviting, setInviting] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState('');
+
+  useEffect(() => {
+    loadData();
+  }, [token]);
+
+  const loadData = async () => {
+    if (!token) return;
+    
+    setLoading(true);
+    try {
+      const [members, invites] = await Promise.all([
+        apiFetch(API_CONFIG.ENDPOINTS.USERS.TEAM, token),
+        apiFetch(API_CONFIG.ENDPOINTS.USERS.INVITATIONS, token),
+      ]);
+      
+      setTeamMembers(members);
+      setInvitations(invites);
+    } catch (error: any) {
+      console.error('Failed to load team data:', error);
+      alert('Failed to load team data: ' + (error.message || 'Unknown error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInvite = async () => {
+    if (!token || !inviteEmail) return;
+    
+    setInviting(true);
+    try {
+      const result = await apiFetch(
+        API_CONFIG.ENDPOINTS.USERS.INVITE,
+        token,
+        {
+          method: 'POST',
+          body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+        }
+      );
+      
+      setInviteUrl(result.inviteUrl);
+      alert('✅ Invitation sent successfully! Copy the link below and send it to them');
+      
+      // Reload invitations
+      const invites = await apiFetch(API_CONFIG.ENDPOINTS.USERS.INVITATIONS, token);
+      setInvitations(invites);
+      
+      // Clear form
+      setInviteEmail('');
+      setInviteRole('user');
+    } catch (error: any) {
+      console.error('Failed to invite:', error);
+      alert('Failed to send invitation: ' + (error.message || 'Unknown error'));
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleRevokeInvitation = async (invitationId: string) => {
+    if (!token || !confirm('Cancel this invitation?')) return;
+    
+    try {
+      await apiFetch(
+        API_CONFIG.ENDPOINTS.USERS.REVOKE_INVITATION(invitationId),
+        token,
+        { method: 'DELETE' }
+      );
+      
+      alert('✅ Invitation canceled successfully');
+      
+      // Reload invitations
+      const invites = await apiFetch(API_CONFIG.ENDPOINTS.USERS.INVITATIONS, token);
+      setInvitations(invites);
+    } catch (error: any) {
+      console.error('Failed to revoke invitation:', error);
+      alert('Failed to cancel invitation: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert('✅ Link copied to clipboard!');
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Team Management</h1>
+        <p className="text-gray-600">Manage team members and invite new members</p>
+      </div>
+
+      {/* Invite Button */}
+      <div className="mb-6">
+        <button
+          onClick={() => setShowInviteModal(true)}
+          className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+          </svg>
+          Invite New Member
+        </button>
+      </div>
+
+      {/* Team Members */}
+      <div className="bg-white rounded-lg shadow-md mb-6">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-xl font-bold text-gray-900">Team Members ({teamMembers.length})</h2>
+        </div>
+        <div className="divide-y divide-gray-200">
+          {teamMembers.map((member) => (
+            <div key={member.id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl">
+                  {member.name?.charAt(0).toUpperCase() || '?'}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">
+                    {member.name}
+                    {member.id === currentUser?.id && (
+                      <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">You</span>
+                    )}
+                  </h3>
+                  <p className="text-sm text-gray-600">{member.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                  member.role === 'ADMIN' 
+                    ? 'bg-purple-100 text-purple-700' 
+                    : 'bg-gray-100 text-gray-700'
+                }`}>
+                  {member.role === 'ADMIN' ? 'Admin' : 'Member'}
+                </span>
+                <span className="text-xs text-gray-500">
+                  Joined: {new Date(member.createdAt).toLocaleDateString('en-US')}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Pending Invitations */}
+      {invitations.length > 0 && (
+        <div className="bg-white rounded-lg shadow-md">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-xl font-bold text-gray-900">Pending Invitations ({invitations.length})</h2>
+          </div>
+          <div className="divide-y divide-gray-200">
+            {invitations.map((invitation) => (
+              <div key={invitation.id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{invitation.email}</h3>
+                    <p className="text-sm text-gray-600">
+                      Expires: {new Date(invitation.expiresAt).toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                    invitation.role === 'ADMIN' 
+                      ? 'bg-purple-100 text-purple-700' 
+                      : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {invitation.role === 'ADMIN' ? 'Admin' : 'Member'}
+                  </span>
+                  <button
+                    onClick={() => handleRevokeInvitation(invitation.id)}
+                    className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Invite Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">Invite New Member</h2>
+                <button
+                  onClick={() => {
+                    setShowInviteModal(false);
+                    setInviteUrl('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {inviteUrl ? (
+                <div>
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 text-green-600 mb-3">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="font-semibold">Invitation Created!</span>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-3">Copy the link below and send it to the person you want to invite:</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={inviteUrl}
+                        readOnly
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
+                      />
+                      <button
+                        onClick={() => copyToClipboard(inviteUrl)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowInviteModal(false);
+                      setInviteUrl('');
+                    }}
+                    className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+                  >
+                    Close
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="user@example.com"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Role
+                    </label>
+                    <select
+                      value={inviteRole}
+                      onChange={(e) => setInviteRole(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="user">Member (User)</option>
+                      <option value="ADMIN">Admin</option>
+                    </select>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowInviteModal(false)}
+                      className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleInvite}
+                      disabled={inviting || !inviteEmail}
+                      className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all font-semibold disabled:opacity-50"
+                    >
+                      {inviting ? 'Inviting...' : 'Invite'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
