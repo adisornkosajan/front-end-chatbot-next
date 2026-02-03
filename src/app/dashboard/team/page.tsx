@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { apiFetch } from '@/lib/api';
 import { API_CONFIG } from '@/lib/config';
+import { useRouter } from 'next/navigation';
 
 type TeamMember = {
   id: string;
@@ -25,6 +26,8 @@ type Invitation = {
 export default function TeamPage() {
   const token = useAuthStore((s) => s.token);
   const currentUser = useAuthStore((s) => s.user);
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,8 +38,25 @@ export default function TeamPage() {
   const [inviteUrl, setInviteUrl] = useState('');
 
   useEffect(() => {
-    loadData();
-  }, [token]);
+    setMounted(true);
+  }, []);
+
+  // Redirect if not logged in or not admin
+  useEffect(() => {
+    if (mounted) {
+      if (!token) {
+        router.push('/auth/login');
+      } else if (currentUser?.role !== 'ADMIN') {
+        router.push('/dashboard/inbox');
+      }
+    }
+  }, [mounted, token, currentUser, router]);
+
+  useEffect(() => {
+    if (mounted && token && currentUser?.role === 'ADMIN') {
+      loadData();
+    }
+  }, [mounted, token, currentUser]);
 
   const loadData = async () => {
     if (!token) return;

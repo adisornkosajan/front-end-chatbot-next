@@ -17,11 +17,15 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const isHydrated = useAuthStore((s) => s.isHydrated);
   const setConversations = useChatStore((s) => s.setConversations);
   const pathname = usePathname();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Check if user is admin
+  const isAdmin = user?.role === 'ADMIN';
 
   // Wait for Zustand to hydrate from localStorage
   useEffect(() => {
@@ -123,68 +127,78 @@ export default function DashboardLayout({
               )}
             </Link>
 
-            <div className="text-xs font-bold text-gray-400 uppercase tracking-wider px-3 py-2 mt-6">
-              Integrations
-            </div>
-            <Link
-              href="/dashboard/connections"
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
-                pathname?.includes('/connections')
-                  ? 'bg-blue-50 text-blue-600 font-semibold'
-                  : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              <span>Platforms</span>
-            </Link>
+            {/* Integrations - Only show for Admin */}
+            {isAdmin && (
+              <>
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-wider px-3 py-2 mt-6">
+                  Integrations
+                </div>
+                <Link
+                  href="/dashboard/connections"
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
+                    pathname?.includes('/connections')
+                      ? 'bg-blue-50 text-blue-600 font-semibold'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <span>Platforms</span>
+                </Link>
+              </>
+            )}
 
-            <div className="text-xs font-bold text-gray-400 uppercase tracking-wider px-3 py-2 mt-6">
-              Settings
-            </div>
-            <Link
-              href="/dashboard/settings"
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
-                pathname?.includes('/settings')
-                  ? 'bg-blue-50 text-blue-600 font-semibold'
-                  : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span>General</span>
-            </Link>
+            {/* Settings - Only show for Admin */}
+            {isAdmin && (
+              <>
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-wider px-3 py-2 mt-6">
+                  Settings
+                </div>
+                <Link
+                  href="/dashboard/settings"
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
+                    pathname?.includes('/settings')
+                      ? 'bg-blue-50 text-blue-600 font-semibold'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span>General</span>
+                </Link>
 
-            <Link
-              href="/dashboard/ai-settings"
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
-                pathname?.includes('/ai-settings')
-                  ? 'bg-blue-50 text-blue-600 font-semibold'
-                  : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-              <span>AI Assistant</span>
-            </Link>
+                <Link
+                  href="/dashboard/ai-settings"
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
+                    pathname?.includes('/ai-settings')
+                      ? 'bg-blue-50 text-blue-600 font-semibold'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  <span>AI Assistant</span>
+                </Link>
 
-            <Link
-              href="/dashboard/team"
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
-                pathname?.includes('/team')
-                  ? 'bg-blue-50 text-blue-600 font-semibold'
-                  : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              <span>Team</span>
-            </Link>
+                <Link
+                  href="/dashboard/team"
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
+                    pathname?.includes('/team')
+                      ? 'bg-blue-50 text-blue-600 font-semibold'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <span>Team</span>
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -195,9 +209,16 @@ export default function DashboardLayout({
               {useAuthStore.getState().user?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">
-                {useAuthStore.getState().user?.name || 'User'}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-gray-900 truncate">
+                  {useAuthStore.getState().user?.name || 'User'}
+                </p>
+                {isAdmin && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                    Admin
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-gray-500 truncate">
                 {useAuthStore.getState().user?.email || ''}
               </p>

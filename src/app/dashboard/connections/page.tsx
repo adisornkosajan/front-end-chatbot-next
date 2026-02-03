@@ -38,8 +38,10 @@ type SyncResult = {
 
 export default function ConnectionsPage() {
   const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(null);
   const [connectedPlatforms, setConnectedPlatforms] = useState<ConnectedPlatform[]>([]);
   const [facebookPages, setFacebookPages] = useState<FacebookPage[]>([]);
@@ -48,7 +50,22 @@ export default function ConnectionsPage() {
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [editingPlatform, setEditingPlatform] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<any>({});
-  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Redirect if not logged in or not admin
+  useEffect(() => {
+    if (mounted) {
+      if (!token) {
+        router.push('/auth/login');
+      } else if (user?.role !== 'ADMIN') {
+        router.push('/dashboard/inbox');
+      }
+    }
+  }, [mounted, token, user, router]);
+
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [whatsAppFormData, setWhatsAppFormData] = useState({
     phoneNumberId: '',

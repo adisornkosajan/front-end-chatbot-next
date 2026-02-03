@@ -105,6 +105,11 @@ export default function ConversationSidebar() {
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-full bg-gradient-to-r ${getPlatformColor(c.platform.type)} text-white shadow-sm`}>
                     {c.platform.type.toUpperCase()}
                   </span>
+                  {c.requestHuman && (
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-500 text-white animate-pulse">
+                      🙋 Wants Human
+                    </span>
+                  )}
                   {c.status && (
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
                       c.status === 'open' ? 'bg-green-100 text-green-700' :

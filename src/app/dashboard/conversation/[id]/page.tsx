@@ -38,6 +38,14 @@ export default function ConversationPage() {
     return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    const messagesContainer = document.querySelector('.messages-container');
+    if (messagesContainer) {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+  }, [messages]);
+
   // Load organization users
   useEffect(() => {
     if (!token) return;
@@ -83,6 +91,38 @@ export default function ConversationPage() {
       alert('Failed to assign: ' + (err.message || 'Unknown error'));
     } finally {
       setAssigning(false);
+    }
+  };
+
+  // Resume AI auto-reply
+  const handleResumeAI = async () => {
+    if (!token || !id) return;
+    
+    const confirmed = window.confirm('Resume AI auto-reply for this conversation?\n\nAI will start responding to messages automatically again.');
+    if (!confirmed) return;
+    
+    try {
+      const updatedConv = await apiFetch(
+        `/api/conversations/${id}/resume-ai`,
+        token,
+        {
+          method: 'POST',
+        }
+      );
+      
+      console.log('✅ Resume AI response:', updatedConv);
+      
+      // Reload all conversations to update the list
+      const updatedConvs = await apiFetch(API_CONFIG.ENDPOINTS.CONVERSATIONS.LIST, token);
+      useChatStore.getState().setConversations(updatedConvs);
+      
+      alert('✅ AI auto-reply resumed! AI will now respond to new messages automatically.');
+      
+      // Force re-render by reloading the page (optional but ensures clean state)
+      window.location.reload();
+    } catch (err: any) {
+      console.error('❌ Failed to resume AI:', err);
+      alert('Failed to resume AI: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -219,6 +259,15 @@ export default function ConversationPage() {
                     Assigned
                   </span>
                 )}
+                {conversation.requestHuman && (
+                  <button
+                    onClick={handleResumeAI}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 transition shadow-md flex items-center gap-1"
+                    title="Resume AI auto-reply"
+                  >
+                    🤖 Resume AI
+                  </button>
+                )}
               </div>
             </div>
 
@@ -288,9 +337,9 @@ export default function ConversationPage() {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 messages-container">
+      <div className="flex-1 overflow-y-auto p-6 messages-container" style={{ display: 'flex', flexDirection: 'column' }}>
         {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex items-center justify-center" style={{ flex: 1 }}>
             <div className="text-center">
               <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center">
                 <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -302,7 +351,8 @@ export default function ConversationPage() {
             </div>
           </div>
         ) : (
-          messages.map((m, index) => {
+          <div className="space-y-4">
+            {messages.map((m, index) => {
             const showTimestamp = index === 0 || 
               (messages[index - 1] && new Date(m.createdAt).getTime() - new Date(messages[index - 1].createdAt).getTime() > 300000);
             
@@ -339,7 +389,8 @@ export default function ConversationPage() {
                 </div>
               </div>
             );
-          })
+          })}
+          </div>
         )}
       </div>
 

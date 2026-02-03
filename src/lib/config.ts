@@ -15,10 +15,19 @@ export const API_CONFIG = {
       SYNC_FACEBOOK: (platformId: string) => `/api/conversations/sync/facebook/${platformId}`,
     },
     USERS: {
+      PROFILE: '/api/users/profile',
+      CHANGE_PASSWORD: '/api/users/change-password',
       TEAM: '/api/users/team',
       INVITE: '/api/users/team/invite',
       INVITATIONS: '/api/users/team/invitations',
       REVOKE_INVITATION: (id: string) => `/api/users/team/invitations/${id}`,
+    },
+    ORGANIZATIONS: {
+      CURRENT: '/api/organizations/current',
+    },
+    AI: {
+      CONFIG: '/api/ai/config',
+      TEST: '/api/ai/test',
     },
   },
 };
