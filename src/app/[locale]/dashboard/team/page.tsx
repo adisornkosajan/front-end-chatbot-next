@@ -10,7 +10,7 @@ type TeamMember = {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: 'ADMIN' | 'MANAGER' | 'USER';
   createdAt: string;
 };
 
@@ -36,17 +36,18 @@ export default function TeamPage() {
   const [inviteRole, setInviteRole] = useState('user');
   const [inviting, setInviting] = useState(false);
   const [inviteUrl, setInviteUrl] = useState('');
+  const [changingRole, setChangingRole] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Redirect if not logged in or not admin
+  // Redirect if not logged in or not admin/manager
   useEffect(() => {
     if (mounted) {
       if (!token) {
         router.push('/auth/login');
-      } else if (currentUser?.role !== 'ADMIN') {
+      } else if (currentUser?.role !== 'ADMIN' && currentUser?.role !== 'MANAGER') {
         router.push('/dashboard/inbox');
       }
     }
@@ -136,6 +137,68 @@ export default function TeamPage() {
     alert('✅ Link copied to clipboard!');
   };
 
+  const handleChangeRole = async (userId: string, newRole: 'ADMIN' | 'MANAGER' | 'USER') => {
+    if (!token || !currentUser) return;
+    
+    if (currentUser.role !== 'ADMIN') {
+      alert('Only admins can change user roles');
+      return;
+    }
+
+    if (!confirm(`Change this user's role to ${newRole}?`)) return;
+    
+    try {
+      setChangingRole(userId);
+      await apiFetch(
+        `/api/users/${userId}/role`,
+        token,
+        {
+          method: 'PUT',
+          body: JSON.stringify({ role: newRole })
+        }
+      );
+      
+      alert('✅ Role updated successfully');
+      
+      // Reload team members
+      const members = await apiFetch(API_CONFIG.ENDPOINTS.USERS.TEAM, token);
+      setTeamMembers(members);
+    } catch (error: any) {
+      console.error('Failed to update role:', error);
+      alert('Failed to update role: ' + (error.message || 'Unknown error'));
+    } finally {
+      setChangingRole(null);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!token || !currentUser) return;
+    
+    if (currentUser.role !== 'ADMIN') {
+      alert('Only admins can delete users');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to remove ${userName} from the team?`)) return;
+    
+    try {
+      await apiFetch(
+        `/api/users/${userId}`,
+        token,
+        { method: 'DELETE' }
+      );
+      
+      alert('✅ User removed successfully');
+      
+      // Reload team members
+      const members = await apiFetch(API_CONFIG.ENDPOINTS.USERS.TEAM, token);
+      setTeamMembers(members);
+    } catch (error: any) {
+      console.error('Failed to delete user:', error);
+      alert('Failed to remove user: ' + (error.message || 'Unknown error'));
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -191,13 +254,36 @@ export default function TeamPage() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                  member.role === 'ADMIN' 
-                    ? 'bg-purple-100 text-purple-700' 
-                    : 'bg-gray-100 text-gray-700'
-                }`}>
-                  {member.role === 'ADMIN' ? 'Admin' : 'Member'}
-                </span>
+                {currentUser?.role === 'ADMIN' && member.id !== currentUser?.id ? (
+                  <>
+                    <select
+                      value={member.role}
+                      onChange={(e) => handleChangeRole(member.id, e.target.value as 'ADMIN' | 'MANAGER' | 'USER')}
+                      disabled={changingRole === member.id}
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="ADMIN">Admin</option>
+                      <option value="MANAGER">Manager</option>
+                      <option value="USER">User</option>
+                    </select>
+                    <button
+                      onClick={() => handleDeleteUser(member.id, member.name)}
+                      className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-200 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </>
+                ) : (
+                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                    member.role === 'ADMIN' 
+                      ? 'bg-purple-100 text-purple-700' 
+                      : member.role === 'MANAGER'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {member.role}
+                  </span>
+                )}
                 <span className="text-xs text-gray-500">
                   Joined: {new Date(member.createdAt).toLocaleDateString('en-US')}
                 </span>
@@ -337,9 +423,15 @@ export default function TeamPage() {
                       onChange={(e) => setInviteRole(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="user">Member (User)</option>
+                      <option value="USER">User</option>
+                      <option value="MANAGER">Manager</option>
                       <option value="ADMIN">Admin</option>
                     </select>
+                    <p className="mt-2 text-xs text-gray-500">
+                      <span className="font-semibold">User:</span> Can view and reply to messages<br/>
+                      <span className="font-semibold">Manager:</span> Can manage integrations and view team<br/>
+                      <span className="font-semibold">Admin:</span> Full access to all settings
+                    </p>
                   </div>
 
                   <div className="flex gap-3">

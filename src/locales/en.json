@@ -1,0 +1,171 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "success": "Success",
+    "error": "Error",
+    "confirm": "Confirm",
+    "close": "Close"
+  },
+  "nav": {
+    "inbox": "Inbox",
+    "platforms": "Platforms",
+    "general": "General",
+    "ai_assistant": "AI Assistant",
+    "team": "Team",
+    "integrations": "Integrations",
+    "plugins": "Plugins"
+  },
+  "settings": {
+    "title": "General Settings",
+    "subtitle": "Manage your account settings and preferences",
+    "profile": {
+      "title": "Profile Information",
+      "subtitle": "Update your personal details",
+      "full_name": "Full Name",
+      "email": "Email",
+      "save_changes": "Save Changes",
+      "success": "Profile updated successfully!",
+      "error": "Failed to update profile"
+    },
+    "password": {
+      "title": "Change Password",
+      "subtitle": "Update your password to keep your account secure",
+      "current_password": "Current Password",
+      "new_password": "New Password",
+      "confirm_password": "Confirm New Password",
+      "min_length": "min 6 characters",
+      "change_password": "Change Password",
+      "changing": "Changing...",
+      "success": "Password changed successfully!",
+      "error": "Failed to change password",
+      "mismatch": "New passwords do not match",
+      "too_short": "Password must be at least 6 characters"
+    },
+    "organization": {
+      "title": "Organization Settings",
+      "subtitle": "Manage your organization details",
+      "name": "Organization Name",
+      "description": "Description",
+      "save": "Save Organization",
+      "success": "Organization updated successfully!",
+      "error": "Failed to update organization"
+    }
+  },
+  "ai_settings": {
+    "title": "AI Assistant Settings",
+    "subtitle": "Configure AI models and behavior for automated responses",
+    "status": {
+      "title": "AI Assistant Status",
+      "subtitle": "Enable or disable AI-powered responses",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "provider": {
+      "title": "AI Provider",
+      "subtitle": "Select your preferred AI service",
+      "openai": "OpenAI",
+      "openai_desc": "GPT-4 and GPT-3.5 models",
+      "anthropic": "Anthropic",
+      "anthropic_desc": "Claude 3 family of models",
+      "gemini": "Google Gemini",
+      "gemini_desc": "Google's Gemini models"
+    },
+    "model": "Model",
+    "api_config": {
+      "title": "API Configuration",
+      "subtitle": "Enter your API credentials",
+      "api_key": "API Key",
+      "get_key": "Get your API key from",
+      "temperature": "Temperature (0-1)",
+      "temperature_desc": "Higher = more creative, Lower = more focused",
+      "max_tokens": "Max Tokens",
+      "max_tokens_desc": "Maximum response length"
+    },
+    "system_prompt": {
+      "title": "System Prompt",
+      "subtitle": "Define business role and information",
+      "placeholder": "You are a receptionist at [Business Name]\nBusiness Type: [e.g., Massage Spa, Restaurant, Hotel]\nOperating Hours: [e.g., 09:00-21:00]\nMain Services: [e.g., Thai Massage, Oil Massage, Foot Massage]\nPricing: [List service prices]\nAddress: [Business address]\nPhone: [Contact number]\n\nRespond to customer inquiries politely, provide accurate information, and assist with booking appointments or service recommendations.",
+      "hint": "💡 Tip: Specify business type, hours, services, pricing, and location for accurate AI responses"
+    },
+    "actions": {
+      "save": "Save Configuration",
+      "test": "Test Connection",
+      "testing": "Testing..."
+    },
+    "messages": {
+      "save_success": "AI configuration saved successfully!",
+      "save_error": "Failed to save AI configuration",
+      "test_success": "✅ AI Connection Test Successful!\n\nYour AI provider is working correctly.",
+      "test_error": "❌ Test Failed",
+      "api_key_required": "Please enter an API key",
+      "api_key_save_first": "Please enter and save an API key first"
+    }
+  },
+  "plugins": {
+    "title": "Plugin Store",
+    "subtitle": "Extend your chatbot with custom features and integrations",
+    "stats": {
+      "total": "Total Plugins",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "empty": {
+      "title": "No Features Added Yet",
+      "subtitle": "Start building your custom features by adding your first plugin",
+      "button": "Add First Feature"
+    },
+    "card": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "added": "Added",
+      "enable": "Enable",
+      "disable": "Disable",
+      "configure": "Configure",
+      "delete": "Delete"
+    },
+    "types": {
+      "crm": "CRM",
+      "analytics": "Analytics",
+      "marketing": "Marketing",
+      "support": "Support",
+      "storage": "Storage",
+      "payment": "Payment"
+    },
+    "modal": {
+      "add_title": "Add New Plugin",
+      "edit_title": "Edit Plugin",
+      "plugin_info": "Plugin Information",
+      "basic_details": "Configure basic plugin details",
+      "name": "Plugin Name",
+      "name_placeholder": "e.g., Salesforce CRM, Google Analytics",
+      "type": "Plugin Type",
+      "description": "Description",
+      "description_placeholder": "Brief description of what this plugin does...",
+      "api_config": "API Configuration",
+      "credentials": "Enter API credentials for authentication",
+      "api_key": "API Key",
+      "api_key_placeholder": "Enter API key",
+      "api_secret": "API Secret",
+      "api_secret_placeholder": "Enter API secret (optional)",
+      "save": "Save Plugin",
+      "saving": "Saving...",
+      "cancel": "Cancel"
+    },
+    "messages": {
+      "add_success": "Plugin added successfully!",
+      "add_error": "Failed to add plugin",
+      "update_success": "Plugin updated successfully!",
+      "update_error": "Failed to update plugin",
+      "delete_confirm": "Are you sure you want to delete this plugin?",
+      "delete_success": "Plugin deleted successfully!",
+      "delete_error": "Failed to delete plugin",
+      "toggle_success": "Plugin status updated!",
+      "toggle_error": "Failed to update plugin status"
+    }
+  }
+}

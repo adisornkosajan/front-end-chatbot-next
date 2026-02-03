@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
+import { useLocale } from 'next-intl';
 
 export default function Home() {
   const router = useRouter();
+  const locale = useLocale();
   const token = useAuthStore((s) => s.token);
   const isHydrated = useAuthStore((s) => s.isHydrated);
   const [isChecking, setIsChecking] = useState(true);
@@ -15,9 +17,9 @@ export default function Home() {
 
     // Redirect based on auth status
     if (token) {
-      router.push('/dashboard/inbox');
+      router.push(`/${locale}/dashboard/inbox`);
     } else {
-      router.push('/auth/login');
+      router.push(`/${locale}/auth/login`);
     }
     
     setIsChecking(false);
