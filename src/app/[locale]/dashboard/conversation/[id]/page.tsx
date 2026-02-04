@@ -468,7 +468,7 @@ export default function ConversationPage() {
 
       {/* Notes Panel (Right Sidebar) */}
       {showNotes && (
-        <div className="w-96 border-l-2 border-gray-200 shadow-xl">
+        <div className="w-96 border-l-2 border-gray-200 shadow-xl flex flex-col">
           <NotesPanel conversationId={id as string} />
         </div>
       )}

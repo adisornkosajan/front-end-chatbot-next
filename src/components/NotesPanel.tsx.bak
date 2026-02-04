@@ -47,6 +47,9 @@ export default function NotesPanel({ conversationId }: { conversationId: string 
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
   
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'notes' | 'summary'>('notes');
+  
   // Notes state
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,8 +114,8 @@ export default function NotesPanel({ conversationId }: { conversationId: string 
     }
   };
 
-  const handleSaveSummary = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleSaveSummary = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!token) return;
 
     try {
@@ -137,14 +140,6 @@ export default function NotesPanel({ conversationId }: { conversationId: string 
 
   const handleCreateNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // If customer summary type, call handleSaveSummary instead
-    if (noteType === 'customer-summary') {
-      await handleSaveSummary();
-      setNoteType('general');
-      return;
-    }
-    
     if (!newNote.trim() || !token) return;
 
     try {
@@ -257,38 +252,87 @@ export default function NotesPanel({ conversationId }: { conversationId: string 
   }
 
   return (
-    <NotesContent
-      notes={notes}
-      newNote={newNote}
-      setNewNote={setNewNote}
-      noteType={noteType}
-      setNoteType={setNoteType}
-      editingNote={editingNote}
-      setEditingNote={setEditingNote}
-      editContent={editContent}
-      setEditContent={setEditContent}
-      viewingHistory={viewingHistory}
-      setViewingHistory={setViewingHistory}
-      noteHistory={noteHistory}
-      handleCreateNote={handleCreateNote}
-      handleUpdateNote={handleUpdateNote}
-      handleDeleteNote={handleDeleteNote}
-      handleTogglePin={handleTogglePin}
-      loadNoteHistory={loadNoteHistory}
-      getNoteIcon={getNoteIcon}
-      getNoteColor={getNoteColor}
-      user={user}
-      summary={summary}
-      summaryForm={summaryForm}
-      setSummaryForm={setSummaryForm}
-      handleSaveSummary={handleSaveSummary}
-      savingSummary={savingSummary}
-    />
+    <div className="h-full flex flex-col bg-gradient-to-br from-gray-50 to-blue-50">
+      {/* Tabs */}
+      <div className="flex border-b-2 border-gray-200 bg-white shadow-sm">
+        <button
+          onClick={() => setActiveTab('notes')}
+          className={`flex-1 py-3 px-4 font-semibold transition-all relative ${
+            activeTab === 'notes'
+              ? 'text-blue-600 bg-blue-50'
+              : 'text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <span className="mr-2">📝</span>
+          Internal Notes
+          {activeTab === 'notes' && (
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('summary')}
+          className={`flex-1 py-3 px-4 font-semibold transition-all relative ${
+            activeTab === 'summary'
+              ? 'text-purple-600 bg-purple-50'
+              : 'text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <span className="mr-2">👤</span>
+          Summary
+          {activeTab === 'summary' && (
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-pink-500"></div>
+          )}
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-hidden">
+        {activeTab === 'notes' ? (
+          <NotesContent
+            notes={notes}
+            newNote={newNote}
+            setNewNote={setNewNote}
+            noteType={noteType}
+            setNoteType={setNoteType}
+            editingNote={editingNote}
+            setEditingNote={setEditingNote}
+            editContent={editContent}
+            setEditContent={setEditContent}
+            viewingHistory={viewingHistory}
+            setViewingHistory={setViewingHistory}
+            noteHistory={noteHistory}
+            handleCreateNote={handleCreateNote}
+            handleUpdateNote={handleUpdateNote}
+            handleDeleteNote={handleDeleteNote}
+            handleTogglePin={handleTogglePin}
+            loadNoteHistory={loadNoteHistory}
+            getNoteIcon={getNoteIcon}
+            getNoteColor={getNoteColor}
+            user={user}
+          />
+        ) : (
+          <SummaryContent
+            summary={summary}
+            summaryForm={summaryForm}
+            setSummaryForm={setSummaryForm}
+            handleSaveSummary={handleSaveSummary}
+            savingSummary={savingSummary}
+          />
+        )}
+      </div>
+    </div>
   );
 }
 
-// Internal Notes Component with Customer Summary
-function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, editingNote, setEditingNote, editContent, setEditContent, viewingHistory, setViewingHistory, noteHistory, handleCreateNote, handleUpdateNote, handleDeleteNote, handleTogglePin, loadNoteHistory, getNoteIcon, getNoteColor, user, summary, summaryForm, setSummaryForm, handleSaveSummary, savingSummary }: any) {
+// Internal Notes Component
+function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, editingNote, setEditingNote, editContent, setEditContent, viewingHistory, setViewingHistory, noteHistory, handleCreateNote, handleUpdateNote, handleDeleteNote, handleTogglePin, loadNoteHistory, getNoteIcon, getNoteColor, user }: any) {
+  return (
+    <div className="h-full flex flex-col">
+      {/* Create Note Form */}
+      <div className="p-4 bg-white border-b-2 border-gray-200 shadow-sm">
+    );
+  }
+
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Header */}
@@ -297,77 +341,25 @@ function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, editi
           <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <h3 className="text-lg font-bold text-gray-900">Notes</h3>
+          <h3 className="text-lg font-bold text-gray-900">Internal Notes</h3>
         </div>
-        <p className="text-xs text-gray-600">Customer summary and internal notes</p>
+        <p className="text-xs text-gray-600">Add private notes visible only to your team</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {/* Customer Summary Section */}
-        {summary && (
-          <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-b-2 border-blue-200">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                <h3 className="text-base font-bold text-gray-900">Customer Summary</h3>
-              </div>
+      {/* Notes List */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {notes.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
             </div>
-            <div className="bg-white rounded-lg p-3 space-y-2 shadow-sm">
-              {summary.name && (
-                <div className="flex items-start gap-2">
-                  <span className="text-sm font-bold text-gray-700 min-w-[80px]">Name:</span>
-                  <span className="text-sm text-gray-900 font-medium">{summary.name}</span>
-                </div>
-              )}
-              {summary.mobile && (
-                <div className="flex items-start gap-2">
-                  <span className="text-sm font-bold text-gray-700 min-w-[80px]">Mobile:</span>
-                  <span className="text-sm text-gray-900 font-medium">{summary.mobile}</span>
-                </div>
-              )}
-              {summary.email && (
-                <div className="flex items-start gap-2">
-                  <span className="text-sm font-bold text-gray-700 min-w-[80px]">Email:</span>
-                  <span className="text-sm text-gray-900 font-medium">{summary.email}</span>
-                </div>
-              )}
-              {summary.importantKey && (
-                <div className="flex items-start gap-2">
-                  <span className="text-sm font-bold text-gray-700 min-w-[80px]">Important:</span>
-                  <span className="text-sm text-gray-900 font-medium whitespace-pre-wrap">{summary.importantKey}</span>
-                </div>
-              )}
-              <div className="text-xs text-gray-500 pt-2 border-t border-gray-200">
-                Updated: {new Date(summary.updatedAt).toLocaleString()}
-              </div>
-            </div>
+            <p className="text-sm font-medium text-gray-600">No notes yet</p>
+            <p className="text-xs text-gray-500 mt-1">Add your first note below</p>
           </div>
-        )}
-
-        {/* Internal Notes Section */}
-        <div className="p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <h4 className="text-sm font-bold text-gray-900">Internal Notes</h4>
-          </div>
-          
-          <div className="space-y-3">
-            {notes.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium text-gray-600">No notes yet</p>
-                <p className="text-xs text-gray-500 mt-1">Add your first note below</p>
-              </div>
-            ) : (
-              notes.map((note: Note) => (
+        ) : (
+          notes.map((note) => (
             <div
               key={note.id}
               className={`relative border-2 rounded-xl p-4 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] transform ${
@@ -492,12 +484,10 @@ function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, editi
             </div>
           ))
         )}
-          </div>
-        </div>
       </div>
 
       {/* Add Note Form */}
-      <form onSubmit={handleCreateNote} className="p-4 border-t-2 border-gray-300 bg-gray-50">
+      <form onSubmit={handleCreateNote} className="p-4 border-t border-gray-200 bg-gray-50">
         <div className="space-y-3">
           <select
             value={noteType}
@@ -509,73 +499,21 @@ function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, editi
             <option value="important">⭐ Important</option>
             <option value="reminder">⏰ Reminder</option>
             <option value="follow-up">📌 Follow-up</option>
-            <option value="customer-summary">👤 Customer Summary</option>
           </select>
-          
-          {noteType === 'customer-summary' ? (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-bold text-gray-900 mb-1.5">Name</label>
-                  <input
-                    type="text"
-                    value={summaryForm.name}
-                    onChange={(e) => setSummaryForm({ ...summaryForm, name: e.target.value })}
-                    className="w-full px-3 py-2 text-base border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-gray-900 font-medium"
-                    placeholder="Customer name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-900 mb-1.5">Mobile</label>
-                  <input
-                    type="tel"
-                    value={summaryForm.mobile}
-                    onChange={(e) => setSummaryForm({ ...summaryForm, mobile: e.target.value })}
-                    className="w-full px-3 py-2 text-base border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-gray-900 font-medium"
-                    placeholder="Phone number"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1.5">Email</label>
-                <input
-                  type="email"
-                  value={summaryForm.email}
-                  onChange={(e) => setSummaryForm({ ...summaryForm, email: e.target.value })}
-                  className="w-full px-3 py-2 text-base border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-gray-900 font-medium"
-                  placeholder="Email address"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1.5">Important Key</label>
-                <textarea
-                  value={summaryForm.importantKey}
-                  onChange={(e) => setSummaryForm({ ...summaryForm, importantKey: e.target.value })}
-                  className="w-full px-3 py-2 text-base border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none bg-white text-gray-900 font-medium"
-                  placeholder="Important notes, special requirements, etc."
-                  rows={3}
-                />
-              </div>
-            </div>
-          ) : (
-            <textarea
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              placeholder="Type your note here..."
-              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none resize-none bg-white text-gray-900 font-medium"
-              style={{ fontSize: '14px' }}
-              rows={3}
-            />
-          )}
-          
+          <textarea
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+            placeholder="Type your note here..."
+            className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none resize-none bg-white text-gray-900 font-medium"
+            style={{ fontSize: '14px' }}
+            rows={3}
+          />
           <button
             type="submit"
-            disabled={noteType === 'customer-summary' ? savingSummary : !newNote.trim()}
+            disabled={!newNote.trim()}
             className="w-full px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {noteType === 'customer-summary' 
-              ? (savingSummary ? 'Saving...' : 'Save Customer Summary') 
-              : 'Add Note'}
+            Add Note
           </button>
         </div>
       </form>
@@ -621,7 +559,7 @@ function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, editi
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {noteHistory.map((history: NoteHistory, index: number) => (
+                  {noteHistory.map((history, index) => (
                     <div key={history.id} className="relative">
                       {index !== noteHistory.length - 1 && (
                         <div className="absolute left-6 top-16 bottom-0 w-0.5 bg-gradient-to-b from-purple-300 to-transparent"></div>
