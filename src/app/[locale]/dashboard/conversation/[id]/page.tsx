@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 import { useChatStore } from '@/store/chat.store';
-import { getSocket } from '@/lib/socket';
+import { connectSocket, getSocket } from '@/lib/socket';
 import { apiFetch } from '@/lib/api';
 import { API_CONFIG } from '@/lib/config';
 import MessageInput from '@/components/MessageInput';
 import NotesPanel from '@/components/NotesPanel';
 import PromptPayQRCode from '@/components/PromptPayQRCode';
+import ConversationHeader from '@/components/ConversationHeader';
 
 type User = {
   id: string;
@@ -179,8 +180,10 @@ export default function ConversationPage() {
   }, [id, token, setMessages]);
 
   useEffect(() => {
+    if (!token) return;
+
     const setupSocketListener = () => {
-      const socket = getSocket();
+      const socket = getSocket() ?? connectSocket(token);
       if (!socket) {
         console.warn('⏳ Socket not ready yet in conversation page, will retry...');
         return null;
@@ -219,25 +222,32 @@ export default function ConversationPage() {
       };
     };
 
+    let cleanupFn: (() => void) | null = null;
+
     // Try to setup listener
-    const cleanup = setupSocketListener();
-    
-    // If socket not ready, retry after 500ms
-    if (!cleanup) {
-      const retryTimeout = setTimeout(() => {
-        const retryCleanup = setupSocketListener();
-        if (retryCleanup) {
-          return retryCleanup;
-        }
-      }, 500);
+    cleanupFn = setupSocketListener();
 
-      return () => {
-        clearTimeout(retryTimeout);
-      };
-    }
+    const retryInterval = !cleanupFn
+      ? setInterval(() => {
+          const retryCleanup = setupSocketListener();
+          if (retryCleanup) {
+            cleanupFn = retryCleanup;
+            if (retryInterval !== null) {
+              clearInterval(retryInterval);
+            }
+          }
+        }, 500)
+      : null;
 
-    return cleanup;
-  }, [id, addMessage]);
+    return () => {
+      if (retryInterval) {
+        clearInterval(retryInterval);
+      }
+      if (cleanupFn) {
+        cleanupFn();
+      }
+    };
+  }, [id, addMessage, token]);
 
   if (loading) {
     return (
@@ -268,126 +278,64 @@ export default function ConversationPage() {
         {/* Header */}
         {conversation && (
           <div className="bg-white border-b-2 border-gray-200 px-6 py-4 shadow-md">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
-                {conversation.customer?.name?.charAt(0).toUpperCase() || '?'}
-              </div>
-              <div className="flex-1">
-              <h2 className="text-xl font-bold text-gray-900">
-                {conversation.customer?.name || 'Unknown Customer'}
-              </h2>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
-                  {conversation.platform.type.toUpperCase()}
-                </span>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                  conversation.status === 'open' ? 'bg-green-100 text-green-700' :
-                  conversation.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-gray-100 text-gray-700'
-                }`}>
-                  {conversation.status || 'Active'}
-                </span>
-                {conversation.assignedAgentId && (
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                    </svg>
-                    Assigned
-                  </span>
-                )}
-                {conversation.requestHuman && (
-                  <button
-                    onClick={handleResumeAI}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 transition shadow-md flex items-center gap-1"
-                    title="Resume AI auto-reply"
-                  >
-                    🤖 Resume AI
-                  </button>
-                )}
-              </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2">
-              {/* Notes Toggle Button */}
-              <button
-                onClick={() => setShowNotes(!showNotes)}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all shadow-md flex items-center gap-2 ${
-                  showNotes
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-white text-purple-600 border-2 border-purple-200 hover:bg-purple-50'
-                }`}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                {showNotes ? 'Hide Notes' : 'Notes'}
-              </button>
-
-              {/* Assign Button */}
-              <div className="relative">
-                <button
-                onClick={() => setShowAssignMenu(!showAssignMenu)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg font-semibold transition-all"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                Assign
-              </button>
-
-              {/* Assign Dropdown */}
-              {showAssignMenu && (
-                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-2xl border border-gray-200 z-50">
-                  <div className="p-3 border-b border-gray-200">
-                    <h3 className="font-bold text-gray-900">Assign To</h3>
-                    <p className="text-xs text-gray-500 mt-1">Select a team member to handle this conversation</p>
-                  </div>
-                  <div className="p-2 max-h-64 overflow-y-auto">
-                    {orgUsers.map((user) => (
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                  {conversation.customer?.name?.charAt(0).toUpperCase() || '?'}
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {conversation.customer?.name || 'Unknown Customer'}
+                  </h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
+                      {conversation.platform.type.toUpperCase()}
+                    </span>
+                    {conversation.requestHuman && (
                       <button
-                        key={user.id}
-                        onClick={() => handleAssign(user.id)}
-                        disabled={assigning}
-                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg transition-all disabled:opacity-50"
+                        onClick={handleResumeAI}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 transition shadow-md flex items-center gap-1"
+                        title="Resume AI auto-reply"
                       >
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-                          {user.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="flex-1 text-left">
-                          <p className="text-sm font-semibold text-gray-900">{user.name}</p>
-                          <p className="text-xs text-gray-500">{user.email}</p>
-                        </div>
-                        {conversation.assignedAgentId === user.id && (
-                          <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        )}
+                        🤖 Resume AI
                       </button>
-                    ))}
-                    
-                    {conversation.assignedAgentId && (
-                      <>
-                        <div className="border-t border-gray-200 my-2"></div>
-                        <button
-                          onClick={() => handleAssign(null)}
-                          disabled={assigning}
-                          className="w-full flex items-center gap-3 px-3 py-2 hover:bg-red-50 text-red-600 rounded-lg transition-all disabled:opacity-50"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                          <span className="text-sm font-semibold">Remove Assignment</span>
-                        </button>
-                      </>
                     )}
                   </div>
                 </div>
-              )}
+              </div>
+
+              {/* Right side controls */}
+              <div className="flex items-center gap-3">
+                {/* Notes Toggle Button */}
+                <button
+                  onClick={() => setShowNotes(!showNotes)}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-all shadow-md flex items-center gap-2 ${
+                    showNotes
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-white text-purple-600 border-2 border-purple-200 hover:bg-purple-50'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  {showNotes ? 'Hide Notes' : 'Notes'}
+                </button>
+
+                {/* Status and Assignment Controls */}
+                <ConversationHeader
+                  conversationId={conversation.id}
+                  currentStatus={conversation.status}
+                  assignedAgentId={conversation.assignedAgentId}
+                  onUpdate={() => {
+                    // Reload conversations
+                    apiFetch(API_CONFIG.ENDPOINTS.CONVERSATIONS.LIST, token ?? undefined).then((convs) => {
+                      useChatStore.getState().setConversations(convs);
+                    });
+                  }}
+                />
               </div>
             </div>
           </div>
-        </div>
         )}
 
         {/* Messages */}
@@ -431,9 +379,34 @@ export default function ConversationPage() {
                             : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
                         }`}
                       >
-                        <div className="text-base whitespace-pre-wrap break-words leading-relaxed font-medium">
-                          {m.content}
-                        </div>
+                        {/* Show image if exists */}
+                        {(m as any).imageUrl && (
+                          <div className="mb-3 group cursor-pointer" onClick={() => window.open((m as any).imageUrl, '_blank')}>
+                            <div className="relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300">
+                              <img
+                                src={(m as any).imageUrl}
+                                alt="Message attachment"
+                                className="max-w-full transform group-hover:scale-105 transition-transform duration-500"
+                                style={{ maxHeight: '400px' }}
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <div className="absolute bottom-3 right-3 flex items-center gap-2 text-white text-sm font-semibold bg-black/50 backdrop-blur-sm px-3 py-1.5 rounded-lg">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                  <span>View full size</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Show content only if not empty */}
+                        {m.content && m.content.trim() && (
+                          <div className="text-base whitespace-pre-wrap break-words leading-relaxed font-medium">
+                            {m.content}
+                          </div>
+                        )}
                         
                         {/* Show QR Code button for payment messages */}
                         {m.senderType !== 'customer' && isPaymentMessage(m.content) && (

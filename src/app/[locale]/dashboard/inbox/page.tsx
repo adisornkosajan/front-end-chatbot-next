@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { useChatStore } from '@/store/chat.store';
-import { getSocket } from '@/lib/socket';
+import { connectSocket, getSocket } from '@/lib/socket';
 import { apiFetch } from '@/lib/api';
 import { API_CONFIG } from '@/lib/config';
 import ConversationSidebar from '@/components/ConversationSidebar';
@@ -23,7 +23,7 @@ export default function InboxPage() {
     const setupSocketListener = () => {
       console.log('═══════════════════════════════════════');
       console.log('📱 Inbox page: Setting up socket listener');
-      const socket = getSocket();
+      const socket = getSocket() ?? connectSocket(token);
       console.log('Socket object:', socket ? 'EXISTS' : 'NULL');
       console.log('Socket connected:', socket?.connected ? 'YES' : 'NO');
       console.log('Socket ID:', socket?.id || 'N/A');
@@ -61,25 +61,31 @@ export default function InboxPage() {
       };
     };
 
+    let cleanupFn: (() => void) | null = null;
+
     // พยายามตั้งค่า socket listener
-    const cleanup = setupSocketListener();
-    
-    // ถ้ายังไม่มี socket ให้ลองใหม่หลัง 500ms
-    if (!cleanup) {
-      const retryTimeout = setTimeout(() => {
-        const retryCleanup = setupSocketListener();
-        if (retryCleanup) {
-          // ถ้าสำเร็จในครั้งที่ 2 ให้เก็บ cleanup function
-          return retryCleanup;
-        }
-      }, 500);
+    cleanupFn = setupSocketListener();
 
-      return () => {
-        clearTimeout(retryTimeout);
-      };
-    }
+    const retryInterval = !cleanupFn
+      ? setInterval(() => {
+          const retryCleanup = setupSocketListener();
+          if (retryCleanup) {
+            cleanupFn = retryCleanup;
+            if (retryInterval !== null) {
+              clearInterval(retryInterval);
+            }
+          }
+        }, 500)
+      : null;
 
-    return cleanup;
+    return () => {
+      if (retryInterval) {
+        clearInterval(retryInterval);
+      }
+      if (cleanupFn) {
+        cleanupFn();
+      }
+    };
   }, [token, setConversations]);
 
   return (

@@ -13,12 +13,23 @@ type Note = {
   createdAt: string;
   updatedAt: string;
   isPinned: boolean;
+  tags: string[] | null;
   creator?: {
     id: string;
     name: string | null;
     email: string;
   };
 };
+
+const PRESET_TAGS = [
+  'Customer Service',
+  'Technical Issue',
+  'Billing',
+  'Feature Request',
+  'Follow-up',
+  'Important',
+  'Urgent',
+];
 
 type NoteHistory = {
   id: string;
@@ -52,8 +63,12 @@ export default function NotesPanel({ conversationId }: { conversationId: string 
   const [loading, setLoading] = useState(true);
   const [newNote, setNewNote] = useState('');
   const [noteType, setNoteType] = useState('general');
+  const [newNoteTags, setNewNoteTags] = useState<string[]>([]);
+  const [customTag, setCustomTag] = useState('');
+  const [showAddForm, setShowAddForm] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [editTags, setEditTags] = useState<string[]>([]);
   const [viewingHistory, setViewingHistory] = useState<string | null>(null);
   const [noteHistory, setNoteHistory] = useState<NoteHistory[]>([]);
   
@@ -155,11 +170,14 @@ export default function NotesPanel({ conversationId }: { conversationId: string 
           content: newNote,
           type: noteType,
           visibility: 'internal',
+          tags: newNoteTags.length > 0 ? newNoteTags : null,
         }),
       });
 
       setNewNote('');
       setNoteType('general');
+      setNewNoteTags([]);
+      setShowAddForm(false);
       loadNotes();
     } catch (error) {
       console.error('Failed to create note:', error);
@@ -175,11 +193,13 @@ export default function NotesPanel({ conversationId }: { conversationId: string 
         method: 'PUT',
         body: JSON.stringify({
           content: editContent,
+          tags: editTags.length > 0 ? editTags : null,
         }),
       });
 
       setEditingNote(null);
       setEditContent('');
+      setEditTags([]);
       loadNotes();
     } catch (error) {
       console.error('Failed to update note:', error);
@@ -263,10 +283,18 @@ export default function NotesPanel({ conversationId }: { conversationId: string 
       setNewNote={setNewNote}
       noteType={noteType}
       setNoteType={setNoteType}
+      newNoteTags={newNoteTags}
+      setNewNoteTags={setNewNoteTags}
+      customTag={customTag}
+      setCustomTag={setCustomTag}
+      showAddForm={showAddForm}
+      setShowAddForm={setShowAddForm}
       editingNote={editingNote}
       setEditingNote={setEditingNote}
       editContent={editContent}
       setEditContent={setEditContent}
+      editTags={editTags}
+      setEditTags={setEditTags}
       viewingHistory={viewingHistory}
       setViewingHistory={setViewingHistory}
       noteHistory={noteHistory}
@@ -288,7 +316,7 @@ export default function NotesPanel({ conversationId }: { conversationId: string 
 }
 
 // Internal Notes Component with Customer Summary
-function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, editingNote, setEditingNote, editContent, setEditContent, viewingHistory, setViewingHistory, noteHistory, handleCreateNote, handleUpdateNote, handleDeleteNote, handleTogglePin, loadNoteHistory, getNoteIcon, getNoteColor, user, summary, summaryForm, setSummaryForm, handleSaveSummary, savingSummary }: any) {
+function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, newNoteTags, setNewNoteTags, customTag, setCustomTag, showAddForm, setShowAddForm, editingNote, setEditingNote, editContent, setEditContent, editTags, setEditTags, viewingHistory, setViewingHistory, noteHistory, handleCreateNote, handleUpdateNote, handleDeleteNote, handleTogglePin, loadNoteHistory, getNoteIcon, getNoteColor, user, summary, summaryForm, setSummaryForm, handleSaveSummary, savingSummary }: any) {
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Header */}
@@ -392,6 +420,31 @@ function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, editi
                     rows={3}
                     autoFocus
                   />
+                  {/* Tags for editing */}
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-1">
+                      {PRESET_TAGS.map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => {
+                            if (editTags.includes(tag)) {
+                              setEditTags(editTags.filter((t: string) => t !== tag));
+                            } else {
+                              setEditTags([...editTags, tag]);
+                            }
+                          }}
+                          className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                            editTags.includes(tag)
+                              ? 'bg-purple-600 text-white'
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleUpdateNote(note.id)}
@@ -403,6 +456,7 @@ function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, editi
                       onClick={() => {
                         setEditingNote(null);
                         setEditContent('');
+                        setEditTags([]);
                       }}
                       className="px-3 py-1.5 bg-gray-300 text-gray-700 text-sm font-medium rounded hover:bg-gray-400 transition-colors"
                     >
@@ -437,6 +491,7 @@ function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, editi
                         onClick={() => {
                           setEditingNote(note);
                           setEditContent(note.content);
+                          setEditTags(note.tags || []);
                         }}
                         className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors"
                         title="Edit"
@@ -459,6 +514,19 @@ function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, editi
                   <p className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-3">
                     {note.content}
                   </p>
+                  {/* Tags */}
+                  {note.tags && note.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {note.tags.map((tag: string, idx: number) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700 rounded-full"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between pt-3 border-t border-gray-200">
                     <div className="flex flex-col gap-1.5">
                       <p className="text-xs text-gray-500 flex items-center gap-1">
@@ -496,9 +564,20 @@ function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, editi
         </div>
       </div>
 
-      {/* Add Note Form */}
-      <form onSubmit={handleCreateNote} className="p-4 border-t-2 border-gray-300 bg-gray-50">
-        <div className="space-y-3">
+      {/* Add Note Section */}
+      <div className="p-4 border-t-2 border-gray-300 bg-gray-50">
+        {!showAddForm ? (
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Note
+          </button>
+        ) : (
+          <form onSubmit={handleCreateNote} className="space-y-3">
           <select
             value={noteType}
             onChange={(e) => setNoteType(e.target.value)}
@@ -568,17 +647,65 @@ function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, editi
             />
           )}
           
-          <button
-            type="submit"
-            disabled={noteType === 'customer-summary' ? savingSummary : !newNote.trim()}
-            className="w-full px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {noteType === 'customer-summary' 
-              ? (savingSummary ? 'Saving...' : 'Save Customer Summary') 
-              : 'Add Note'}
-          </button>
-        </div>
-      </form>
+          {noteType !== 'customer-summary' && (
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-700">Tags (optional)</label>
+              <div className="flex flex-wrap gap-1">
+                {PRESET_TAGS.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => {
+                      if (newNoteTags.includes(tag)) {
+                        setNewNoteTags(newNoteTags.filter((t: string) => t !== tag));
+                      } else {
+                        setNewNoteTags([...newNoteTags, tag]);
+                      }
+                    }}
+                    className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                      newNoteTags.includes(tag)
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+              {newNoteTags.length > 0 && (
+                <div className="text-xs text-gray-600">
+                  Selected: {newNoteTags.join(', ')}
+                </div>
+              )}
+            </div>
+          )}
+          
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={noteType === 'customer-summary' ? savingSummary : !newNote.trim()}
+              className="flex-1 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {noteType === 'customer-summary' 
+                ? (savingSummary ? 'Saving...' : 'Save Customer Summary') 
+                : 'Add Note'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddForm(false);
+                setNewNote('');
+                setNoteType('general');
+                setNewNoteTags([]);
+              }}
+              className="px-4 py-2.5 bg-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-400 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+        )}
+      </div>
 
       {/* History Modal */}
       {viewingHistory && (
