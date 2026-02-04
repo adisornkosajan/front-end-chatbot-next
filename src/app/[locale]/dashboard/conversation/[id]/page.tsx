@@ -8,6 +8,8 @@ import { getSocket } from '@/lib/socket';
 import { apiFetch } from '@/lib/api';
 import { API_CONFIG } from '@/lib/config';
 import MessageInput from '@/components/MessageInput';
+import NotesPanel from '@/components/NotesPanel';
+import PromptPayQRCode from '@/components/PromptPayQRCode';
 
 type User = {
   id: string;
@@ -29,6 +31,10 @@ export default function ConversationPage() {
   const [orgUsers, setOrgUsers] = useState<User[]>([]);
   const [showAssignMenu, setShowAssignMenu] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [qrPhoneNumber, setQRPhoneNumber] = useState('');
+  const [qrAmount, setQRAmount] = useState<number | undefined>(undefined);
 
   // Get conversation at the top level (before any conditional returns)
   const conversation = conversations.find((c) => c.id === id);
@@ -36,6 +42,34 @@ export default function ConversationPage() {
   const formatMessageTime = (date: string) => {
     const d = new Date(date);
     return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Check if message contains payment info
+  const isPaymentMessage = (content: string) => {
+    const paymentKeywords = [
+      'ช่องทางการชำระเงิน',
+      'สแกน QR Code',
+      'พร้อมเพย์',
+      'ชำระเงิน',
+      'จ่ายเงิน',
+      'payment',
+      'QR Code',
+      '0812345678'
+    ];
+    return paymentKeywords.some(keyword => content.toLowerCase().includes(keyword.toLowerCase()));
+  };
+
+  // Extract phone number from payment message
+  const extractPhoneFromMessage = (content: string): string => {
+    const phoneMatch = content.match(/พร้อมเพย์:\s*(\d{10})/);
+    return phoneMatch ? phoneMatch[1] : '0812345678';
+  };
+
+  const handleShowQRCode = (content: string) => {
+    const phone = extractPhoneFromMessage(content);
+    setQRPhoneNumber(phone);
+    setQRAmount(undefined); // or extract from message if available
+    setShowQRCode(true);
   };
 
   // Auto-scroll to bottom when messages change
@@ -228,15 +262,17 @@ export default function ConversationPage() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-gray-50 to-blue-50">
-      {/* Header */}
-      {conversation && (
-        <div className="bg-white border-b-2 border-gray-200 px-6 py-4 shadow-md">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
-              {conversation.customer?.name?.charAt(0).toUpperCase() || '?'}
-            </div>
-            <div className="flex-1">
+    <div className="flex h-full bg-gradient-to-br from-gray-50 to-blue-50">
+      {/* Main Conversation Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        {conversation && (
+          <div className="bg-white border-b-2 border-gray-200 px-6 py-4 shadow-md">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                {conversation.customer?.name?.charAt(0).toUpperCase() || '?'}
+              </div>
+              <div className="flex-1">
               <h2 className="text-xl font-bold text-gray-900">
                 {conversation.customer?.name || 'Unknown Customer'}
               </h2>
@@ -269,11 +305,28 @@ export default function ConversationPage() {
                   </button>
                 )}
               </div>
-            </div>
+              </div>
 
-            {/* Assign Button */}
-            <div className="relative">
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+              {/* Notes Toggle Button */}
               <button
+                onClick={() => setShowNotes(!showNotes)}
+                className={`px-4 py-2 rounded-lg font-semibold transition-all shadow-md flex items-center gap-2 ${
+                  showNotes
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-white text-purple-600 border-2 border-purple-200 hover:bg-purple-50'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                {showNotes ? 'Hide Notes' : 'Notes'}
+              </button>
+
+              {/* Assign Button */}
+              <div className="relative">
+                <button
                 onClick={() => setShowAssignMenu(!showAssignMenu)}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg font-semibold transition-all"
               >
@@ -331,71 +384,103 @@ export default function ConversationPage() {
                   </div>
                 </div>
               )}
+              </div>
             </div>
           </div>
         </div>
-      )}
+        )}
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 messages-container" style={{ display: 'flex', flexDirection: 'column' }}>
-        {messages.length === 0 ? (
-          <div className="flex items-center justify-center" style={{ flex: 1 }}>
-            <div className="text-center">
-              <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center">
-                <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-6 messages-container" style={{ display: 'flex', flexDirection: 'column' }}>
+          {messages.length === 0 ? (
+            <div className="flex items-center justify-center" style={{ flex: 1 }}>
+              <div className="text-center">
+                <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center">
+                  <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                </div>
+                <p className="text-lg font-semibold text-gray-600">No messages yet</p>
+                <p className="text-sm text-gray-400 mt-1">Start the conversation below!</p>
               </div>
-              <p className="text-lg font-semibold text-gray-600">No messages yet</p>
-              <p className="text-sm text-gray-400 mt-1">Start the conversation below!</p>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {messages.map((m, index) => {
-            const showTimestamp = index === 0 || 
-              (messages[index - 1] && new Date(m.createdAt).getTime() - new Date(messages[index - 1].createdAt).getTime() > 300000);
-            
-            return (
-              <div key={m.id}>
-                {showTimestamp && (
-                  <div className="text-center my-4">
-                    <span className="text-xs text-gray-500 bg-white px-3 py-1 rounded-full shadow-sm">
-                      {formatMessageTime(m.createdAt)}
-                    </span>
-                  </div>
-                )}
-                <div
-                  className={`flex ${
-                    m.senderType === 'customer' ? 'justify-start' : 'justify-end'
-                  }`}
-                >
-                  <div
-                    className={`max-w-[75%] px-5 py-3 rounded-2xl shadow-md ${
-                      m.senderType === 'customer'
-                        ? 'bg-white text-gray-900 border-2 border-gray-200'
-                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
-                    }`}
-                  >
-                    <p className="text-base whitespace-pre-wrap break-words leading-relaxed font-medium">
-                      {m.content}
-                    </p>
-                    <div className={`text-xs mt-2 ${
-                      m.senderType === 'customer' ? 'text-gray-400' : 'text-blue-100'
-                    }`}>
-                      {formatMessageTime(m.createdAt)}
+          ) : (
+            <div className="space-y-4">
+              {messages.map((m, index) => {
+                const showTimestamp = index === 0 || 
+                  (messages[index - 1] && new Date(m.createdAt).getTime() - new Date(messages[index - 1].createdAt).getTime() > 300000);
+                
+                return (
+                  <div key={m.id}>
+                    {showTimestamp && (
+                      <div className="text-center my-4">
+                        <span className="text-xs text-gray-500 bg-white px-3 py-1 rounded-full shadow-sm">
+                          {formatMessageTime(m.createdAt)}
+                        </span>
+                      </div>
+                    )}
+                    <div
+                      className={`flex ${
+                        m.senderType === 'customer' ? 'justify-start' : 'justify-end'
+                      }`}
+                    >
+                      <div
+                        className={`max-w-[75%] px-5 py-3 rounded-2xl shadow-md ${
+                          m.senderType === 'customer'
+                            ? 'bg-white text-gray-900 border-2 border-gray-200'
+                            : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
+                        }`}
+                      >
+                        <div className="text-base whitespace-pre-wrap break-words leading-relaxed font-medium">
+                          {m.content}
+                        </div>
+                        
+                        {/* Show QR Code button for payment messages */}
+                        {m.senderType !== 'customer' && isPaymentMessage(m.content) && (
+                          <button
+                            onClick={() => handleShowQRCode(m.content)}
+                            className="mt-3 w-full bg-white text-blue-600 hover:bg-blue-50 font-semibold py-2.5 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 border-2 border-blue-200"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                            </svg>
+                            แสดง QR Code ชำระเงิน
+                          </button>
+                        )}
+                        
+                        <div className={`text-xs mt-2 ${
+                          m.senderType === 'customer' ? 'text-gray-400' : 'text-blue-100'
+                        }`}>
+                          {formatMessageTime(m.createdAt)}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            );
-          })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Input */}
+        <MessageInput conversationId={id as string} />
       </div>
 
-      {/* Input */}
-      <MessageInput conversationId={id as string} />
+      {/* Notes Panel (Right Sidebar) */}
+      {showNotes && (
+        <div className="w-96 border-l-2 border-gray-200 shadow-xl">
+          <NotesPanel conversationId={id as string} />
+        </div>
+      )}
+
+      {/* QR Code Modal */}
+      {showQRCode && (
+        <PromptPayQRCode
+          phoneNumber={qrPhoneNumber}
+          amount={qrAmount}
+          onClose={() => setShowQRCode(false)}
+        />
+      )}
     </div>
   );
 }

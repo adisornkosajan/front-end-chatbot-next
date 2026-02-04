@@ -29,11 +29,48 @@ export default function PluginsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingPlugin, setEditingPlugin] = useState<Plugin | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [selectedPlugins, setSelectedPlugins] = useState<string[]>([]);
+
+  // 🎯 กำหนด Plugin Types ที่อนุญาตให้ลูกค้าใช้งาน
+  // แก้ไขตรงนี้เพื่อเปิด/ปิด Plugin Types
+  const ALLOWED_PLUGIN_TYPES = [
+    { value: 'auto-reply', label: '💬 Auto-Reply - ตอบกลับอัตโนมัติ', description: '💬 ตอบกลับอัตโนมัติตามคำสำคัญที่กำหนด' },
+    { value: 'business-hours', label: '⏰ Business Hours - เวลาทำการ', description: '⏰ ตรวจสอบเวลาทำการและแจ้งเตือนลูกค้า' },
+    { value: 'welcome-message', label: '👋 Welcome Message - ข้อความต้อนรับ', description: '👋 ส่งข้อความต้อนรับลูกค้าใหม่' },
+    { value: 'crm', label: '👥 CRM - เชื่อมต่อ CRM', description: '👥 เชื่อมต่อกับระบบ CRM (Salesforce, HubSpot)' },
+    { value: 'analytics', label: '📊 Analytics - วิเคราะห์ข้อมูล', description: '📊 วิเคราะห์ข้อมูลและ sentiment ของข้อความ' },
+    { value: 'marketing', label: '📧 Marketing - การตลาด', description: '📧 ส่งโปรโมชั่นและข้อความการตลาดอัตโนมัติ' },
+    { value: 'support', label: '🎧 Support - ซัพพอร์ต', description: '🎧 ระบบซัพพอร์ตและจัดการ ticket อัตโนมัติ' },
+    { value: 'storage', label: '💾 Storage - จัดเก็บไฟล์', description: '💾 จัดการและเก็บไฟล์ใน Cloud Storage' },
+    { value: 'payment', label: '💳 Payment - ชำระเงิน', description: '💳 รับชำระเงินผ่าน Payment Gateway' },
+  ];
+
+  // ถ้าต้องการปิดบาง types ให้ comment out หรือลบออก
+  // เช่น ปิด CRM และ Storage:
+  // const ALLOWED_PLUGIN_TYPES = [
+  //   { value: 'auto-reply', ... },
+  //   { value: 'business-hours', ... },
+  //   // { value: 'crm', ... },  // ปิด CRM
+  //   // { value: 'storage', ... },  // ปิด Storage
+  // ];
+
   const [formData, setFormData] = useState({
     name: '',
-    type: 'crm',
+    type: 'auto-reply',
     description: '',
-    apiKey: '',
+    apiKey: JSON.stringify({
+      rules: [
+        {
+          keywords: ["ราคา", "เท่าไหร่"],
+          matchAny: true,
+          response: "💰 ราคา 500 บาท",
+          stopAfterMatch: false
+        }
+      ]
+    }, null, 2),
     apiSecret: '',
   });
 
@@ -57,6 +94,81 @@ export default function PluginsPage() {
     }
   }, [token, mounted]);
 
+  // Get default config for each plugin type
+  const getDefaultConfig = (type: string): string => {
+    const configs: { [key: string]: any } = {
+      'auto-reply': {
+        rules: [
+          {
+            keywords: ["ราคา", "เท่าไหร่"],
+            matchAny: true,
+            response: "💰 ราคา 500 บาท",
+            stopAfterMatch: false
+          }
+        ]
+      },
+      'business-hours': {
+        schedule: {
+          monday: { open: "09:00", close: "18:00" },
+          tuesday: { open: "09:00", close: "18:00" },
+          wednesday: { open: "09:00", close: "18:00" },
+          thursday: { open: "09:00", close: "18:00" },
+          friday: { open: "09:00", close: "18:00" },
+          saturday: { open: "09:00", close: "15:00" },
+          sunday: { closed: true }
+        },
+        closedMessage: "🔒 ปิดทำการวันนี้ค่ะ"
+      },
+      'welcome-message': {
+        message: "👋 สวัสดีค่ะ! ยินดีต้อนรับค่ะ มีอะไรให้ช่วยไหมคะ?"
+      },
+      'crm': {
+        crmType: "salesforce",
+        autoCreateContact: true,
+        apiKey: "YOUR_CRM_API_KEY",
+        syncFields: ["name", "email", "phone"]
+      },
+      'analytics': {
+        trackSentiment: true,
+        trackKeywords: true,
+        keywords: ["ราคา", "product", "จอง", "ส่งของ"],
+        generateReports: true,
+        reportInterval: "daily"
+      },
+      'marketing': {
+        autoPromotion: true,
+        promotionTriggers: [
+          {
+            keywords: ["ราคา", "price"],
+            promotionMessage: "🎉 โปรโมชั่นพิเศษ! ลด 20% โค้ด: NEW20"
+          }
+        ]
+      },
+      'support': {
+        autoCreateTicket: true,
+        urgentKeywords: ["urgent", "ด่วน", "emergency", "ฉุกเฉิน"],
+        slaMinutes: 15,
+        assignTo: "support-team"
+      },
+      'storage': {
+        storageType: "s3",
+        autoBackup: true,
+        maxFileSize: 10485760,
+        allowedFileTypes: ["image/jpeg", "image/png", "application/pdf"]
+      },
+      'payment': {
+        gateway: "promptpay",
+        paymentKeywords: ["จ่ายเงิน", "ชำระเงิน", "payment"],
+        promptpayConfig: {
+          phoneNumber: "0812345678",
+          generateQR: true
+        }
+      }
+    };
+
+    return JSON.stringify(configs[type] || {}, null, 2);
+  };
+
   const loadPlugins = async () => {
     try {
       setLoading(true);
@@ -68,6 +180,24 @@ export default function PluginsPage() {
       setLoading(false);
     }
   };
+
+  // Filter plugins
+  const filteredPlugins = plugins.filter(plugin => {
+    // Search filter
+    const matchesSearch = plugin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         plugin.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         plugin.type.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Type filter
+    const matchesType = filterType === 'all' || plugin.type === filterType;
+    
+    // Status filter
+    const matchesStatus = filterStatus === 'all' ||
+                         (filterStatus === 'active' && plugin.isActive) ||
+                         (filterStatus === 'inactive' && !plugin.isActive);
+    
+    return matchesSearch && matchesType && matchesStatus;
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,6 +285,61 @@ export default function PluginsPage() {
     }
   };
 
+  // Bulk Actions
+  const handleSelectAll = () => {
+    if (selectedPlugins.length === filteredPlugins.length) {
+      setSelectedPlugins([]);
+    } else {
+      setSelectedPlugins(filteredPlugins.map(p => p.id));
+    }
+  };
+
+  const handleBulkEnable = async () => {
+    if (selectedPlugins.length === 0) {
+      alert('⚠️ กรุณาเลือก plugins อย่างน้อย 1 ตัว');
+      return;
+    }
+
+    try {
+      for (const pluginId of selectedPlugins) {
+        const plugin = plugins.find(p => p.id === pluginId);
+        if (plugin && !plugin.isActive) {
+          await apiFetch(`/api/plugins/${pluginId}/toggle`, token!, {
+            method: 'PUT',
+          });
+        }
+      }
+      setSelectedPlugins([]);
+      loadPlugins();
+      alert('✅ เปิดใช้งาน plugins สำเร็จแล้ว!');
+    } catch (error) {
+      alert('เกิดข้อผิดพลาด');
+    }
+  };
+
+  const handleBulkDisable = async () => {
+    if (selectedPlugins.length === 0) {
+      alert('⚠️ กรุณาเลือก plugins อย่างน้อย 1 ตัว');
+      return;
+    }
+
+    try {
+      for (const pluginId of selectedPlugins) {
+        const plugin = plugins.find(p => p.id === pluginId);
+        if (plugin && plugin.isActive) {
+          await apiFetch(`/api/plugins/${pluginId}/toggle`, token!, {
+            method: 'PUT',
+          });
+        }
+      }
+      setSelectedPlugins([]);
+      loadPlugins();
+      alert('✅ ปิดใช้งาน plugins สำเร็จแล้ว!');
+    } catch (error) {
+      alert('เกิดข้อผิดพลาด');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -234,33 +419,124 @@ export default function PluginsPage() {
         </div>
       </div>
 
+      {/* Search & Filters */}
+      <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4 mb-6">
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* Search Bar */}
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="🔍 Search plugins by name, type, or description..."
+              className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white text-gray-900 font-medium"
+              style={{ fontSize: '15px' }}
+            />
+            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+
+          {/* Type Filter */}
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white text-gray-900 font-medium"
+            style={{ fontSize: '15px' }}
+          >
+            <option value="all">📦 All Types</option>
+            {ALLOWED_PLUGIN_TYPES.map(type => (
+              <option key={type.value} value={type.value}>
+                {type.label.split(' - ')[0]}
+              </option>
+            ))}
+          </select>
+
+          {/* Status Filter */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white text-gray-900 font-medium"
+            style={{ fontSize: '15px' }}
+          >
+            <option value="all">🔄 All Status</option>
+            <option value="active">✅ Active</option>
+            <option value="inactive">⏸️ Inactive</option>
+          </select>
+
+          {/* Results Count */}
+          <div className="flex items-center px-4 py-3 bg-gray-100 rounded-lg">
+            <span className="text-sm font-bold text-gray-700">
+              {filteredPlugins.length} / {plugins.length}
+            </span>
+          </div>
+        </div>
+
+        {/* Quick Filters */}
+        <div className="flex flex-wrap gap-2 mt-4">
+          <button
+            onClick={() => { setFilterType('all'); setFilterStatus('all'); setSearchQuery(''); }}
+            className="px-3 py-1.5 text-sm font-medium bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
+          >
+            🔄 Clear All
+          </button>
+          <button
+            onClick={() => setFilterStatus('active')}
+            className="px-3 py-1.5 text-sm font-medium bg-green-100 hover:bg-green-200 text-green-700 rounded-lg transition-colors"
+          >
+            ✅ Active Only
+          </button>
+          <button
+            onClick={() => setFilterType('auto-reply')}
+            className="px-3 py-1.5 text-sm font-medium bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors"
+          >
+            💬 Auto Reply
+          </button>
+        </div>
+      </div>
+
       {/* Plugins Grid */}
-      {plugins.length === 0 ? (
+      {filteredPlugins.length === 0 ? (
         <div className="bg-white rounded-xl shadow-md border border-gray-200 p-12 text-center">
           <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">{t('empty.title')}</h3>
-          <p className="text-gray-600 mb-4">{t('empty.subtitle')}</p>
-          <button
-            onClick={() => {
-              setEditingPlugin(null);
-              setFormData({ name: '', type: 'crm', description: '', apiKey: '', apiSecret: '' });
-              setShowModal(true);
-            }}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            {t('empty.button')}
-          </button>
+          {plugins.length === 0 ? (
+            <>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">{t('empty.title')}</h3>
+              <p className="text-gray-600 mb-4">{t('empty.subtitle')}</p>
+              <button
+                onClick={() => {
+                  setEditingPlugin(null);
+                  setFormData({ name: '', type: 'crm', description: '', apiKey: '', apiSecret: '' });
+                  setShowModal(true);
+                }}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                {t('empty.button')}
+              </button>
+            </>
+          ) : (
+            <>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">🔍 No plugins found</h3>
+              <p className="text-gray-600 mb-4">Try adjusting your search or filters</p>
+              <button
+                onClick={() => { setFilterType('all'); setFilterStatus('all'); setSearchQuery(''); }}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition-colors"
+              >
+                🔄 Clear Filters
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {plugins.map((plugin) => {
+          {filteredPlugins.map((plugin) => {
             const getPluginIcon = (type: string) => {
               switch(type) {
                 case 'auto-reply': return '💬';
@@ -292,18 +568,23 @@ export default function PluginsPage() {
             };
 
             return (
-              <div key={plugin.id} className={`bg-white rounded-xl shadow-md border-2 transition-all hover:shadow-xl ${
-                plugin.isActive ? 'border-green-200 bg-gradient-to-br from-white to-green-50' : 'border-gray-200'
-              }`}>
+              <div 
+                key={plugin.id} 
+                className={`group bg-white rounded-xl shadow-md border-2 transition-all duration-300 hover:shadow-2xl hover:scale-105 hover:-translate-y-1 ${
+                  plugin.isActive 
+                    ? 'border-green-200 bg-gradient-to-br from-white to-green-50 hover:border-green-300' 
+                    : 'border-gray-200 hover:border-blue-300'
+                }`}
+              >
                 <div className="p-6">
                   {/* Icon & Status */}
                   <div className="flex items-start justify-between mb-4">
-                    <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${getPluginColor(plugin.type)} flex items-center justify-center text-3xl shadow-lg`}>
+                    <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${getPluginColor(plugin.type)} flex items-center justify-center text-3xl shadow-lg transform transition-transform group-hover:scale-110 group-hover:rotate-3`}>
                       {getPluginIcon(plugin.type)}
                     </div>
                     <div className="flex items-center gap-2">
                       {plugin.isActive ? (
-                        <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
+                        <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold shadow-sm">
                           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                           {t('card.active')}
                         </span>
@@ -316,8 +597,8 @@ export default function PluginsPage() {
                   </div>
 
                   {/* Title & Type */}
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">{plugin.name}</h3>
-                  <span className="inline-block px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-700 mb-3">
+                  <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">{plugin.name}</h3>
+                  <span className="inline-block px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-700 mb-3 group-hover:bg-blue-200 transition-colors">
                     {plugin.type.toUpperCase()}
                   </span>
 
@@ -327,7 +608,10 @@ export default function PluginsPage() {
                   </p>
 
                   {/* Date */}
-                  <p className="text-xs text-gray-400 mb-4">
+                  <p className="text-xs text-gray-400 mb-4 flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
                     {t('card.added')}: {new Date(plugin.createdAt).toLocaleDateString(locale as string, {
                       month: 'short',
                       day: 'numeric',
@@ -336,45 +620,40 @@ export default function PluginsPage() {
                   </p>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 pt-4 border-t border-gray-200">
-                    <button
-                      onClick={() => handleToggleActive(plugin)}
-                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${
-                        plugin.isActive
-                          ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                          : 'bg-green-100 text-green-700 hover:bg-green-200'
-                      }`}
-                    >
-                      {plugin.isActive ? (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          {t('card.disable')}
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          {t('card.enable')}
-                        </>
-                      )}
-                    </button>
+                  <div className="flex items-center gap-3 pt-4 border-t border-gray-200 group-hover:border-gray-300 transition-colors">
+                    {/* Toggle Switch */}
+                    <div className="flex items-center gap-2 flex-1">
+                      <span className="text-sm font-medium text-gray-700">
+                        {plugin.isActive ? '🟢 Active' : '⚪ Inactive'}
+                      </span>
+                      <button
+                        onClick={() => handleToggleActive(plugin)}
+                        className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                          plugin.isActive ? 'bg-green-500' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${
+                            plugin.isActive ? 'translate-x-8' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
                     <button
                       onClick={() => handleEdit(plugin)}
-                      className="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors"
+                      className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-all transform hover:scale-105 hover:shadow-md flex items-center gap-2"
                       title="Configure"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
+                      Edit
                     </button>
                     <button
                       onClick={() => handleDelete(plugin)}
-                      className="px-3 py-2 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-lg transition-colors"
+                      className="px-4 py-2 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-lg transition-all transform hover:scale-105 hover:shadow-md"
                       title="Delete"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -445,19 +724,26 @@ export default function PluginsPage() {
                 </label>
                 <select
                   value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  onChange={(e) => {
+                    const newType = e.target.value;
+                    setFormData({ 
+                      ...formData, 
+                      type: newType,
+                      apiKey: getDefaultConfig(newType)
+                    });
+                  }}
                   required
                   className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900 font-medium"
                   style={{ fontSize: '15px' }}
                 >
-                  <option value="auto-reply" className="py-2 text-gray-900 bg-white">💬 Auto-Reply - ตอบกลับอัตโนมัติ</option>
-                  <option value="business-hours" className="py-2 text-gray-900 bg-white">⏰ Business Hours - เวลาทำการ</option>
-                  <option value="welcome-message" className="py-2 text-gray-900 bg-white">👋 Welcome Message - ข้อความต้อนรับ</option>
+                  {ALLOWED_PLUGIN_TYPES.map(type => (
+                    <option key={type.value} value={type.value} className="py-2 text-gray-900 bg-white">
+                      {type.label}
+                    </option>
+                  ))}
                 </select>
                 <p className="mt-1 text-xs text-gray-500">
-                  {formData.type === 'auto-reply' && '💬 ตอบกลับอัตโนมัติตามคำสำคัญที่กำหนด'}
-                  {formData.type === 'business-hours' && '⏰ ตรวจสอบเวลาทำการและแจ้งเตือนลูกค้า'}
-                  {formData.type === 'welcome-message' && '👋 ส่งข้อความต้อนรับลูกค้าใหม่'}
+                  {ALLOWED_PLUGIN_TYPES.find(t => t.value === formData.type)?.description}
                 </p>
               </div>
 
@@ -487,9 +773,15 @@ export default function PluginsPage() {
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
                   <p className="text-xs text-blue-800">
-                    {formData.type === 'auto-reply' && '💬 ใส่ Config สำหรับ Auto-Reply: {"rules":[{"keywords":["ราคา"],"response":"ข้อความตอบกลับ"}]}'}
-                    {formData.type === 'business-hours' && '⏰ ใส่ Config เวลาทำการ: {"schedule":{"monday":{"open":"09:00","close":"18:00"}}}'}
-                    {formData.type === 'welcome-message' && '👋 ใส่ข้อความต้อนรับ: {"message":"สวัสดีค่ะ"}'}
+                    {formData.type === 'auto-reply' && '💬 Auto-Reply: {"rules":[{"keywords":["ราคา"],"response":"💰 ราคา 500 บาท","matchAny":true}]}'}
+                    {formData.type === 'business-hours' && '⏰ Business Hours: {"schedule":{"monday":{"open":"09:00","close":"18:00"}},"closedMessage":"🔒 ปิดทำการค่ะ"}'}
+                    {formData.type === 'welcome-message' && '👋 Welcome Message: {"message":"👋 สวัสดีค่ะ! มีอะไรให้ช่วยไหมคะ?"}'}
+                    {formData.type === 'crm' && '👥 CRM: {"crmType":"salesforce","autoCreateContact":true,"apiKey":"YOUR_API_KEY"}'}
+                    {formData.type === 'analytics' && '📊 Analytics: {"trackSentiment":true,"trackKeywords":true,"keywords":["ราคา","product"]}'}
+                    {formData.type === 'marketing' && '📧 Marketing: {"autoPromotion":true,"promotionTriggers":[{"keywords":["ราคา"],"promotionMessage":"🎉 ลด 20%!"}]}'}
+                    {formData.type === 'support' && '🎧 Support: {"autoCreateTicket":true,"urgentKeywords":["urgent","ด่วน"],"slaMinutes":15}'}
+                    {formData.type === 'storage' && '💾 Storage: {"storageType":"s3","autoBackup":true,"maxFileSize":10485760}'}
+                    {formData.type === 'payment' && '💳 Payment: {"gateway":"promptpay","promptpayConfig":{"phoneNumber":"0812345678"}}'}
                   </p>
                 </div>
 

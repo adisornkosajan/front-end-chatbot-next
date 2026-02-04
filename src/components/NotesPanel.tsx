@@ -1,0 +1,464 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { apiFetch } from '@/lib/api';
+import { useAuthStore } from '@/store/auth.store';
+
+type Note = {
+  id: string;
+  content: string;
+  type: string;
+  visibility: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  isPinned: boolean;
+  creator?: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+};
+
+type NoteHistory = {
+  id: string;
+  content: string;
+  type: string;
+  editedBy: string;
+  editedAt: string;
+  editor?: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+};
+
+export default function NotesPanel({ conversationId }: { conversationId: string }) {
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newNote, setNewNote] = useState('');
+  const [noteType, setNoteType] = useState('general');
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [viewingHistory, setViewingHistory] = useState<string | null>(null);
+  const [noteHistory, setNoteHistory] = useState<NoteHistory[]>([]);
+
+  useEffect(() => {
+    loadNotes();
+  }, [conversationId, token]);
+
+  const loadNotes = async () => {
+    if (!token || !conversationId) return;
+    
+    try {
+      setLoading(true);
+      const data = await apiFetch(
+        `/api/notes?conversationId=${conversationId}`,
+        token
+      );
+      setNotes(data);
+    } catch (error) {
+      console.error('Failed to load notes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateNote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNote.trim() || !token) return;
+
+    try {
+      await apiFetch('/api/notes', token, {
+        method: 'POST',
+        body: JSON.stringify({
+          conversationId,
+          content: newNote,
+          type: noteType,
+          visibility: 'internal',
+        }),
+      });
+
+      setNewNote('');
+      setNoteType('general');
+      loadNotes();
+    } catch (error) {
+      console.error('Failed to create note:', error);
+      alert('Failed to create note');
+    }
+  };
+
+  const handleUpdateNote = async (noteId: string) => {
+    if (!editContent.trim() || !token) return;
+
+    try {
+      await apiFetch(`/api/notes/${noteId}`, token, {
+        method: 'PUT',
+        body: JSON.stringify({
+          content: editContent,
+        }),
+      });
+
+      setEditingNote(null);
+      setEditContent('');
+      loadNotes();
+    } catch (error) {
+      console.error('Failed to update note:', error);
+      alert('Failed to update note');
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!confirm('Are you sure you want to delete this note?')) return;
+    if (!token) return;
+
+    try {
+      await apiFetch(`/api/notes/${noteId}`, token, {
+        method: 'DELETE',
+      });
+      loadNotes();
+    } catch (error) {
+      console.error('Failed to delete note:', error);
+      alert('Failed to delete note');
+    }
+  };
+
+  const handleTogglePin = async (noteId: string) => {
+    if (!token) return;
+
+    try {
+      await apiFetch(`/api/notes/${noteId}/pin`, token, {
+        method: 'PUT',
+      });
+      loadNotes();
+    } catch (error) {
+      console.error('Failed to toggle pin:', error);
+      alert('Failed to pin/unpin note');
+    }
+  };
+
+  const loadNoteHistory = async (noteId: string) => {
+    if (!token) return;
+
+    try {
+      const data = await apiFetch(`/api/notes/${noteId}/history`, token);
+      setNoteHistory(data);
+      setViewingHistory(noteId);
+    } catch (error) {
+      console.error('Failed to load history:', error);
+      alert('Failed to load note history');
+    }
+  };
+
+  const getNoteIcon = (type: string) => {
+    switch (type) {
+      case 'important': return '⭐';
+      case 'reminder': return '⏰';
+      case 'follow-up': return '📌';
+      default: return '📝';
+    }
+  };
+
+  const getNoteColor = (type: string) => {
+    switch (type) {
+      case 'important': return 'bg-red-50 border-red-200';
+      case 'reminder': return 'bg-yellow-50 border-yellow-200';
+      case 'follow-up': return 'bg-blue-50 border-blue-200';
+      default: return 'bg-gray-50 border-gray-200';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-4 text-center">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <p className="text-sm text-gray-500 mt-2">Loading notes...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-white">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
+        <div className="flex items-center gap-2 mb-2">
+          <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <h3 className="text-lg font-bold text-gray-900">Internal Notes</h3>
+        </div>
+        <p className="text-xs text-gray-600">Add private notes visible only to your team</p>
+      </div>
+
+      {/* Notes List */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {notes.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <p className="text-sm font-medium text-gray-600">No notes yet</p>
+            <p className="text-xs text-gray-500 mt-1">Add your first note below</p>
+          </div>
+        ) : (
+          notes.map((note) => (
+            <div
+              key={note.id}
+              className={`relative border-2 rounded-xl p-4 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] transform ${
+                note.isPinned 
+                  ? 'bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-300 shadow-md' 
+                  : getNoteColor(note.type)
+              }`}
+            >
+              {note.isPinned && (
+                <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 rounded-full p-1.5 shadow-lg animate-bounce">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                  </svg>
+                </div>
+              )}
+              {editingNote?.id === note.id ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none bg-white text-gray-900 font-medium"
+                    rows={3}
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleUpdateNote(note.id)}
+                      className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingNote(null);
+                        setEditContent('');
+                      }}
+                      className="px-3 py-1.5 bg-gray-300 text-gray-700 text-sm font-medium rounded hover:bg-gray-400 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{getNoteIcon(note.type)}</span>
+                      <span className="text-xs font-bold text-gray-500 uppercase">
+                        {note.type}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleTogglePin(note.id)}
+                        className={`p-1 rounded transition-colors ${
+                          note.isPinned 
+                            ? 'text-yellow-600 hover:bg-yellow-100' 
+                            : 'text-gray-400 hover:bg-gray-100'
+                        }`}
+                        title={note.isPinned ? 'Unpin' : 'Pin'}
+                      >
+                        <svg className="w-4 h-4" fill={note.isPinned ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingNote(note);
+                          setEditContent(note.content);
+                        }}
+                        className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                        title="Edit"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteNote(note.id)}
+                        className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
+                        title="Delete"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-3">
+                    {note.content}
+                  </p>
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                    <div className="flex flex-col gap-1.5">
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {new Date(note.createdAt).toLocaleString()}
+                      </p>
+                      {note.creator && (
+                        <p className="text-xs font-semibold flex items-center gap-1">
+                          <span className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 text-white flex items-center justify-center text-[10px] font-bold shadow-sm">
+                            {(note.creator.name || note.creator.email).charAt(0).toUpperCase()}
+                          </span>
+                          <span className="text-blue-700">{note.creator.name || note.creator.email}</span>
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => loadNoteHistory(note.id)}
+                      className="text-xs px-3 py-1.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold rounded-full hover:from-purple-600 hover:to-indigo-600 transition-all shadow-md hover:shadow-lg flex items-center gap-1"
+                      title="View edit history"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      History
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Add Note Form */}
+      <form onSubmit={handleCreateNote} className="p-4 border-t border-gray-200 bg-gray-50">
+        <div className="space-y-3">
+          <select
+            value={noteType}
+            onChange={(e) => setNoteType(e.target.value)}
+            className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none bg-white text-gray-900 font-medium"
+            style={{ fontSize: '14px' }}
+          >
+            <option value="general">📝 General Note</option>
+            <option value="important">⭐ Important</option>
+            <option value="reminder">⏰ Reminder</option>
+            <option value="follow-up">📌 Follow-up</option>
+          </select>
+          <textarea
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+            placeholder="Type your note here..."
+            className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none resize-none bg-white text-gray-900 font-medium"
+            style={{ fontSize: '14px' }}
+            rows={3}
+          />
+          <button
+            type="submit"
+            disabled={!newNote.trim()}
+            className="w-full px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Add Note
+          </button>
+        </div>
+      </form>
+
+      {/* History Modal */}
+      {viewingHistory && (
+        <div 
+          className="fixed inset-0 bg-gray-900 bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn" 
+          onClick={() => setViewingHistory(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full mx-4 max-h-[85vh] overflow-hidden animate-slideUp" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-white">Edit History</h3>
+              </div>
+              <button
+                onClick={() => setViewingHistory(null)}
+                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-all"
+              >
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto max-h-[calc(85vh-100px)] bg-gradient-to-b from-gray-50 to-white">
+              {noteHistory.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-500 font-medium">No edit history yet</p>
+                  <p className="text-sm text-gray-400 mt-1">Changes will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {noteHistory.map((history, index) => (
+                    <div key={history.id} className="relative">
+                      {index !== noteHistory.length - 1 && (
+                        <div className="absolute left-6 top-16 bottom-0 w-0.5 bg-gradient-to-b from-purple-300 to-transparent"></div>
+                      )}
+                      <div className="border-2 border-purple-200 rounded-xl p-4 bg-white shadow-md hover:shadow-lg transition-all duration-300">
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold shadow-md">
+                            {index + 1}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-bold text-purple-700 uppercase tracking-wide bg-purple-100 px-3 py-1 rounded-full">
+                                Previous Version
+                              </span>
+                              <span className="text-xs text-gray-500 flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {new Date(history.editedAt).toLocaleString()}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap break-words leading-relaxed mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                              {history.content}
+                            </p>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs px-3 py-1 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-full font-medium shadow-sm">
+                                {history.type}
+                              </span>
+                              {history.editor && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500">Edited by</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 text-white flex items-center justify-center text-[10px] font-bold shadow-sm">
+                                      {(history.editor.name || history.editor.email).charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="text-xs font-semibold text-blue-700">
+                                      {history.editor.name || history.editor.email}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

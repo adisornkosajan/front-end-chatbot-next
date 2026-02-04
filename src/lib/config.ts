@@ -29,6 +29,12 @@ export const API_CONFIG = {
       CONFIG: '/api/ai/config',
       TEST: '/api/ai/test',
     },
+    NOTES: {
+      LIST: '/api/notes',
+      CREATE: '/api/notes',
+      UPDATE: '/api/notes',
+      DELETE: '/api/notes',
+    },
   },
 };
 
