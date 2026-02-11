@@ -4,6 +4,7 @@ export const API_CONFIG = {
   ENDPOINTS: {
     AUTH: {
       LOGIN: '/api/auth/login',
+      ME: '/api/auth/me',
       OAUTH_URL: '/api/auth/oauth/url',
       OAUTH_CALLBACK: '/api/auth/oauth/callback',
     },
@@ -24,6 +25,11 @@ export const API_CONFIG = {
     },
     ORGANIZATIONS: {
       CURRENT: '/api/organizations/current',
+    },
+    PLATFORM_ADMIN: {
+      ORGANIZATIONS: '/api/platform-admin/organizations',
+      IMPERSONATE: (organizationId: string) =>
+        `/api/platform-admin/organizations/${organizationId}/impersonate`,
     },
     AI: {
       CONFIG: '/api/ai/config',
