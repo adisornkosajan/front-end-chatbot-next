@@ -226,12 +226,19 @@ export default function AllNotesPage() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 relative">
+      {/* Animated Background Blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+        <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+      </div>
+
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white/80 backdrop-blur-xl border-b border-white/40 px-6 py-4 relative z-10 shadow-lg">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">📝 All Notes</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">📝 All Notes</h1>
             <p className="text-sm text-gray-600 mt-1">
               View and manage all internal notes across conversations
             </p>
@@ -246,7 +253,7 @@ export default function AllNotesPage() {
 
         {/* Create Note Form */}
         {isCreating && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <div className="bg-white/90 backdrop-blur-lg border border-white/40 rounded-2xl p-4 mb-4 shadow-xl">
             <h3 className="font-semibold text-gray-900 mb-3">Create New Note</h3>
             <textarea
               value={newNoteContent}
@@ -401,7 +408,7 @@ export default function AllNotesPage() {
       </div>
 
       {/* Notes List */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-6 relative z-10">
         {filteredNotes.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">📝</div>
@@ -421,7 +428,7 @@ export default function AllNotesPage() {
               return (
                 <div
                   key={note.id}
-                  className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  className="bg-white/80 backdrop-blur-xl border border-white/40 rounded-2xl p-4 hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
                 >
                   {isEditing ? (
                     // Edit Mode

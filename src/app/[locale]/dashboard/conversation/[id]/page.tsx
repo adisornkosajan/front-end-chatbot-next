@@ -272,32 +272,39 @@ export default function ConversationPage() {
   }
 
   return (
-    <div className="flex h-full bg-gradient-to-br from-gray-50 to-blue-50">
+    <div className="flex h-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+      {/* Animated Background */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute top-0 -left-4 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl animate-blob"></div>
+        <div className="absolute top-0 -right-4 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000"></div>
+        <div className="absolute -bottom-8 left-20 w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000"></div>
+      </div>
+      
       {/* Main Conversation Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col relative z-10">
         {/* Header */}
         {conversation && (
-          <div className="bg-white border-b-2 border-gray-200 px-6 py-4 shadow-md">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+          <div className="bg-white/80 backdrop-blur-xl border-b border-white/20 px-3 sm:px-6 py-3 sm:py-4 shadow-lg">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg flex-shrink-0">
                   {conversation.customer?.name?.charAt(0).toUpperCase() || '?'}
                 </div>
-                <div className="flex-1">
-                  <h2 className="text-xl font-bold text-gray-900">
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-base sm:text-xl font-bold text-gray-900 truncate">
                     {conversation.customer?.name || 'Unknown Customer'}
                   </h2>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="text-xs font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
                       {conversation.platform.type.toUpperCase()}
                     </span>
                     {conversation.requestHuman && (
                       <button
                         onClick={handleResumeAI}
-                        className="text-xs font-semibold px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 transition shadow-md flex items-center gap-1"
+                        className="text-xs font-semibold px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 transition shadow-md flex items-center gap-1"
                         title="Resume AI auto-reply"
                       >
-                        🤖 Resume AI
+                        🤖 <span className="hidden sm:inline">Resume AI</span><span className="sm:hidden">AI</span>
                       </button>
                     )}
                   </div>
@@ -305,20 +312,20 @@ export default function ConversationPage() {
               </div>
 
               {/* Right side controls */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                 {/* Notes Toggle Button */}
                 <button
                   onClick={() => setShowNotes(!showNotes)}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all shadow-md flex items-center gap-2 ${
+                  className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition-all shadow-md flex items-center gap-1 sm:gap-2 text-sm sm:text-base ${
                     showNotes
                       ? 'bg-purple-600 text-white'
                       : 'bg-white text-purple-600 border-2 border-purple-200 hover:bg-purple-50'
                   }`}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  {showNotes ? 'Hide Notes' : 'Notes'}
+                  <span className="hidden sm:inline">{showNotes ? 'Hide Notes' : 'Notes'}</span>
                 </button>
 
                 {/* Status and Assignment Controls */}
@@ -339,7 +346,7 @@ export default function ConversationPage() {
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 messages-container" style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 messages-container backdrop-blur-sm" style={{ display: 'flex', flexDirection: 'column' }}>
           {messages.length === 0 ? (
             <div className="flex items-center justify-center" style={{ flex: 1 }}>
               <div className="text-center">
@@ -373,10 +380,10 @@ export default function ConversationPage() {
                       }`}
                     >
                       <div
-                        className={`max-w-[75%] px-5 py-3 rounded-2xl shadow-md ${
+                        className={`max-w-[85%] sm:max-w-[75%] px-3 sm:px-5 py-2 sm:py-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 ${
                           m.senderType === 'customer'
-                            ? 'bg-white text-gray-900 border-2 border-gray-200'
-                            : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
+                            ? 'bg-white/90 backdrop-blur-md text-gray-900 border-2 border-white/40'
+                            : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white backdrop-blur-md'
                         }`}
                       >
                         {/* Show image if exists */}
@@ -439,11 +446,34 @@ export default function ConversationPage() {
         <MessageInput conversationId={id as string} />
       </div>
 
-      {/* Notes Panel (Right Sidebar) */}
+      {/* Notes Panel (Right Sidebar - Desktop) / Modal (Mobile) */}
       {showNotes && (
-        <div className="w-96 border-l-2 border-gray-200 shadow-xl flex flex-col">
-          <NotesPanel conversationId={id as string} />
-        </div>
+        <>
+          {/* Desktop Sidebar */}
+          <div className="hidden lg:block w-96 border-l-2 border-gray-200 shadow-xl flex-col">
+            <NotesPanel conversationId={id as string} />
+          </div>
+          
+          {/* Mobile Modal */}
+          <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center">
+            <div className="bg-white w-full sm:max-w-lg sm:rounded-t-3xl rounded-t-3xl max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <h3 className="text-lg font-bold text-gray-900">Notes</h3>
+                <button
+                  onClick={() => setShowNotes(false)}
+                  className="text-gray-400 hover:text-gray-600 p-2"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <NotesPanel conversationId={id as string} />
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* QR Code Modal */}

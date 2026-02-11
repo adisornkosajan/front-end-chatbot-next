@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuthStore } from '@/store/auth.store';
 import { apiFetch } from '@/lib/api';
 import { API_CONFIG } from '@/lib/config';
+import { useLocale } from 'next-intl';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const setToken = useAuthStore((s: any) => s.setToken);
   const setUser = useAuthStore((s: any) => s.setUser);
   const router = useRouter();
+  const locale = useLocale();
 
   async function submit() {
     if (!email || !password) {
@@ -38,7 +40,7 @@ export default function LoginPage() {
       }
       
       console.log('Login successful, token saved to localStorage');
-      router.push('/dashboard/inbox');
+      router.push(`/${locale}/dashboard/inbox`);
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');
     } finally {
@@ -47,36 +49,36 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 p-4">
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMSIgb3BhY2l0eT0iMC4xIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-20"></div>
       
-      <div className="w-full max-w-md p-8 bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl border border-gray-200 relative z-10 mx-4">
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <span className="text-4xl">💬</span>
+      <div className="w-full max-w-md p-6 sm:p-8 bg-white/95 backdrop-blur-lg rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 relative z-10">
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
+            <span className="text-3xl sm:text-4xl">💬</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-          <p className="text-gray-600 font-medium">Sign in to continue to Talk-V AI</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
+          <p className="text-sm sm:text-base text-gray-600 font-medium">Sign in to continue to Talk-V AI</p>
         </div>
         
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-2xl">
-            <div className="flex items-center gap-3">
-              <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 border-2 border-red-200 rounded-xl sm:rounded-2xl">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
               </svg>
-              <p className="text-sm text-red-700 font-semibold">{error}</p>
+              <p className="text-xs sm:text-sm text-red-700 font-semibold">{error}</p>
             </div>
           </div>
         )}
         
-        <div className="space-y-5">
+        <div className="space-y-4 sm:space-y-5">
           <div>
-            <label className="block text-sm font-bold text-gray-800 mb-2">
+            <label className="block text-xs sm:text-sm font-bold text-gray-800 mb-2">
               Email Address
             </label>
             <input
-              className="w-full px-4 py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-900 font-medium placeholder-gray-400 bg-gray-50 hover:bg-white"
+              className="w-full px-3 sm:px-4 py-3 sm:py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-900 font-medium placeholder-gray-400 bg-gray-50 hover:bg-white text-sm sm:text-base"
               placeholder="Enter your email"
               type="email"
               value={email}
@@ -85,11 +87,11 @@ export default function LoginPage() {
           </div>
           
           <div>
-            <label className="block text-sm font-bold text-gray-800 mb-2">
+            <label className="block text-xs sm:text-sm font-bold text-gray-800 mb-2">
               Password
             </label>
             <input
-              className="w-full px-4 py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-900 font-medium placeholder-gray-400 bg-gray-50 hover:bg-white"
+              className="w-full px-3 sm:px-4 py-3 sm:py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-900 font-medium placeholder-gray-400 bg-gray-50 hover:bg-white text-sm sm:text-base"
               type="password"
               placeholder="Enter your password"
               value={password}

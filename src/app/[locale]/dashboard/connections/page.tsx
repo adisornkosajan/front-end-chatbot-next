@@ -459,17 +459,24 @@ export default function ConnectionsPage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-6xl mx-auto p-8">
+    <div className="h-full overflow-y-auto bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 relative">
+      {/* Animated Background Blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+        <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+      </div>
+
+      <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 relative z-10">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Platform Connections</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">Platform Connections</h1>
           <p className="text-gray-600">Connect and manage your social media and messaging platforms</p>
         </div>
 
         {/* Connected Platforms Section */}
         {connectedPlatforms.length > 0 && (
           <div className="mb-8">
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/40 p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-800">Connected Platforms</h2>
@@ -642,7 +649,7 @@ export default function ConnectionsPage() {
           {platforms.map((platform) => (
             <div
               key={platform.id}
-              className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200"
+              className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border border-white/40 transform hover:scale-105"
             >
               <div className={`h-32 bg-gradient-to-br ${platform.color} flex items-center justify-center`}>
                 <div className="text-6xl">{platform.icon}</div>
@@ -668,7 +675,7 @@ export default function ConnectionsPage() {
 
         {/* Platform Pages/Accounts Selection */}
         {selectedPlatform && (
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-8">
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/40 p-6 mb-8">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-gray-800">

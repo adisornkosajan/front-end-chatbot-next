@@ -115,16 +115,17 @@ export default function ConversationHeader({
   const assignedAgent = agents.find((a) => a.id === assignedAgentId);
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2 sm:gap-3">
       {/* Status Dropdown */}
       <div className="relative">
         <button
           onClick={() => setShowStatusMenu(!showStatusMenu)}
           disabled={loading}
-          className={`px-3 py-1.5 rounded-full text-sm font-semibold ${currentStatusOption?.color} hover:opacity-80 transition-opacity flex items-center gap-2`}
+          className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold ${currentStatusOption?.color} hover:opacity-80 transition-opacity flex items-center gap-1 sm:gap-2`}
         >
-          {currentStatusOption?.label}
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <span className="hidden sm:inline">{currentStatusOption?.label}</span>
+          <span className="sm:hidden">{currentStatusOption?.label.split(' ')[0]}</span>
+          <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
@@ -135,15 +136,15 @@ export default function ConversationHeader({
               className="fixed inset-0 z-10" 
               onClick={() => setShowStatusMenu(false)}
             />
-            <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20">
+            <div className="absolute top-full left-0 mt-2 w-40 sm:w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20">
               {STATUS_OPTIONS.map((status) => (
                 <button
                   key={status.value}
                   onClick={() => changeStatus(status.value)}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors flex items-center gap-3"
+                  className="w-full text-left px-3 sm:px-4 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 sm:gap-3"
                 >
-                  <span className={`w-3 h-3 rounded-full ${status.color}`} />
-                  <span className="text-sm text-gray-700">{status.label}</span>
+                  <span className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full ${status.color}`} />
+                  <span className="text-xs sm:text-sm text-gray-700">{status.label}</span>
                 </button>
               ))}
             </div>
@@ -156,13 +157,14 @@ export default function ConversationHeader({
         <button
           onClick={() => setShowAgentMenu(!showAgentMenu)}
           disabled={loading}
-          className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center gap-2"
+          className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center gap-1 sm:gap-2 max-w-[120px] sm:max-w-none"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
-          {assignedAgent ? assignedAgent.name : 'Unassigned'}
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <span className="truncate hidden sm:inline">{assignedAgent ? assignedAgent.name : 'Unassigned'}</span>
+          <span className="truncate sm:hidden">{assignedAgent ? assignedAgent.name.split(' ')[0] : 'None'}</span>
+          <svg className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
@@ -173,18 +175,18 @@ export default function ConversationHeader({
               className="fixed inset-0 z-10" 
               onClick={() => setShowAgentMenu(false)}
             />
-            <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20 max-h-80 overflow-y-auto">
+            <div className="absolute top-full right-0 mt-2 w-64 sm:w-72 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20 max-h-80 overflow-y-auto">
               {!assignedAgentId && (
                 <button
                   onClick={takeConversation}
-                  className="w-full text-left px-4 py-2 hover:bg-blue-50 transition-colors border-b border-gray-100"
+                  className="w-full text-left px-3 sm:px-4 py-2 hover:bg-blue-50 transition-colors border-b border-gray-100"
                 >
-                  <div className="flex items-center gap-3">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div>
-                      <div className="text-sm font-semibold text-blue-600">Take Conversation</div>
+                      <div className="text-xs sm:text-sm font-semibold text-blue-600">Take Conversation</div>
                       <div className="text-xs text-gray-500">Assign to yourself</div>
                     </div>
                   </div>

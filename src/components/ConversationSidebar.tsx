@@ -76,25 +76,27 @@ export default function ConversationSidebar() {
   if (!conversations.length) {
     return (
       <div className="text-center py-12 px-4">
-        <div className="text-4xl mb-3">📭</div>
-        <p className="text-gray-500 text-sm">No conversations yet</p>
+        <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center shadow-xl">
+          <div className="text-3xl">📭</div>
+        </div>
+        <p className="text-gray-600 text-sm font-medium">No conversations yet</p>
         <p className="text-gray-400 text-xs mt-1">New chats will appear here</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-2 p-2">
       {conversations.map((c) => {
         const isActive = pathname?.includes(c.id);
         return (
           <Link
             key={c.id}
             href={`/dashboard/conversation/${c.id}`}
-            className={`block p-4 rounded-xl transition-all duration-200 group ${
+            className={`block p-4 rounded-2xl transition-all duration-300 group relative overflow-hidden ${
               isActive
-                ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 shadow-md'
-                : 'bg-white hover:bg-gray-50 border-2 border-gray-200 hover:border-blue-200 hover:shadow-md'
+                ? 'bg-gradient-to-r from-blue-500/20 to-indigo-500/20 backdrop-blur-md border-2 border-blue-400/50 shadow-xl scale-[1.02]'
+                : 'bg-white/60 backdrop-blur-sm hover:bg-white/80 border-2 border-white/40 hover:border-blue-300/50 hover:shadow-xl hover:scale-[1.02]'
             }`}
           >
             <div className="flex items-start gap-3">

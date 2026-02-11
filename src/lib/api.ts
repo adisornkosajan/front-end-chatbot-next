@@ -1,5 +1,15 @@
 import { getApiUrl } from './config';
 
+function getLoginPathWithLocale() {
+  if (typeof window === 'undefined') {
+    return '/en/auth/login';
+  }
+
+  const firstSegment = window.location.pathname.split('/').filter(Boolean)[0];
+  const locale = firstSegment && /^[a-z]{2}$/i.test(firstSegment) ? firstSegment : 'en';
+  return `/${locale}/auth/login`;
+}
+
 export async function apiFetch(
   endpoint: string,
   token?: string,
@@ -25,7 +35,7 @@ export async function apiFetch(
       if (typeof window !== 'undefined') {
         const { useAuthStore } = await import('@/store/auth.store');
         useAuthStore.getState().logout();
-        window.location.href = '/auth/login';
+        window.location.href = getLoginPathWithLocale();
       }
       
       throw new Error('Authentication failed. Please login again.');

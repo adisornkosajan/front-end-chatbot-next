@@ -26,6 +26,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Check if user is admin
   const isAdmin = user?.role === 'ADMIN';
@@ -92,18 +93,42 @@ export default function DashboardLayout({
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {/* Mobile Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-gradient-to-br from-purple-900/80 via-blue-900/80 to-indigo-900/80 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-72 border-r border-gray-200 bg-white flex flex-col shadow-sm">
+      <aside className={`
+        fixed lg:static inset-y-0 left-0 z-50
+        w-72 border-r border-gray-200 bg-white flex flex-col shadow-sm
+        transform transition-transform duration-300 ease-in-out
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-600">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-2xl">💬</span>
+        <div className="p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-600">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-2xl">💬</span>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">Talk-V AI</h1>
+                <p className="text-xs text-blue-100">SaaS Platform</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-white">Talk-V AI</h1>
-              <p className="text-xs text-blue-100">SaaS Platform</p>
-            </div>
+            {/* Close button for mobile */}
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="lg:hidden text-white hover:bg-white/20 rounded-lg p-2"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         </div>
         
@@ -115,6 +140,7 @@ export default function DashboardLayout({
             </div>
             <Link
               href={`/${locale}/dashboard/inbox`}
+              onClick={() => setIsSidebarOpen(false)}
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
                 pathname?.includes('/inbox') || pathname?.endsWith('/dashboard')
                   ? 'bg-blue-50 text-blue-600 font-semibold'
@@ -134,6 +160,7 @@ export default function DashboardLayout({
 
             <Link
               href={`/${locale}/dashboard/notes`}
+              onClick={() => setIsSidebarOpen(false)}
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
                 pathname?.includes('/notes')
                   ? 'bg-blue-50 text-blue-600 font-semibold'
@@ -148,6 +175,7 @@ export default function DashboardLayout({
 
             <Link
               href={`/${locale}/dashboard/quick-replies`}
+              onClick={() => setIsSidebarOpen(false)}
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
                 pathname?.includes('/quick-replies')
                   ? 'bg-blue-50 text-blue-600 font-semibold'
@@ -162,6 +190,7 @@ export default function DashboardLayout({
 
             <Link
               href={`/${locale}/dashboard/analytics`}
+              onClick={() => setIsSidebarOpen(false)}
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
                 pathname?.includes('/analytics')
                   ? 'bg-blue-50 text-blue-600 font-semibold'
@@ -182,6 +211,7 @@ export default function DashboardLayout({
                 </div>
                 <Link
                   href={`/${locale}/dashboard/connections`}
+                  onClick={() => setIsSidebarOpen(false)}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
                     pathname?.includes('/connections')
                       ? 'bg-blue-50 text-blue-600 font-semibold'
@@ -196,6 +226,7 @@ export default function DashboardLayout({
 
                 <Link
                   href={`/${locale}/dashboard/plugins`}
+                  onClick={() => setIsSidebarOpen(false)}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
                     pathname?.includes('/plugins')
                       ? 'bg-blue-50 text-blue-600 font-semibold'
@@ -218,6 +249,7 @@ export default function DashboardLayout({
                 </div>
                 <Link
                   href={`/${locale}/dashboard/settings`}
+                  onClick={() => setIsSidebarOpen(false)}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
                     pathname?.includes('/settings')
                       ? 'bg-blue-50 text-blue-600 font-semibold'
@@ -235,6 +267,7 @@ export default function DashboardLayout({
                 {isAdmin && (
                   <Link
                     href={`/${locale}/dashboard/ai-settings`}
+                    onClick={() => setIsSidebarOpen(false)}
                     className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
                       pathname?.includes('/ai-settings')
                         ? 'bg-blue-50 text-blue-600 font-semibold'
@@ -251,6 +284,7 @@ export default function DashboardLayout({
                 {/* Team - Admin and Manager can view */}
                 <Link
                   href={`/${locale}/dashboard/team`}
+                  onClick={() => setIsSidebarOpen(false)}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
                     pathname?.includes('/team')
                       ? 'bg-blue-50 text-blue-600 font-semibold'
@@ -296,7 +330,7 @@ export default function DashboardLayout({
             <button
               onClick={() => {
                 useAuthStore.getState().logout();
-                window.location.href = '/auth/login';
+                window.location.href = `/${locale}/auth/login`;
               }}
               className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded-lg hover:bg-red-50"
               title="ออกจากระบบ"
@@ -310,7 +344,29 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 bg-gray-50 overflow-hidden">{children}</main>
+      <main className="flex-1 bg-gray-50 overflow-hidden flex flex-col">
+        {/* Mobile Header */}
+        <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="text-gray-700 hover:bg-gray-100 rounded-lg p-2"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow">
+              <span className="text-xl">💬</span>
+            </div>
+            <span className="font-bold text-gray-900">Talk-V AI</span>
+          </div>
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow">
+            {useAuthStore.getState().user?.name?.charAt(0).toUpperCase() || 'U'}
+          </div>
+        </div>
+        {children}
+      </main>
     </div>
   );
 }

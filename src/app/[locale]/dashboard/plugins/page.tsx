@@ -352,12 +352,20 @@ export default function PluginsPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-screen relative">
+      {/* Animated Background Blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+        <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+      </div>
+
+      <div className="relative z-10">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">🔌 {t('title')}</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">🔌 {t('title')}</h1>
             <p className="text-gray-600">{t('subtitle')}</p>
           </div>
           <button
@@ -376,8 +384,8 @@ export default function PluginsPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white/80 backdrop-blur-xl border border-white/40 rounded-2xl p-4 shadow-xl transform hover:scale-105 transition-all duration-200">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-blue-600 mb-1">{t('stats.total')}</p>
@@ -390,7 +398,7 @@ export default function PluginsPage() {
               </div>
             </div>
           </div>
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
+          <div className="bg-white/80 backdrop-blur-xl border border-white/40 rounded-2xl p-4 shadow-xl transform hover:scale-105 transition-all duration-200">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-green-600 mb-1">{t('stats.active')}</p>
@@ -403,7 +411,7 @@ export default function PluginsPage() {
               </div>
             </div>
           </div>
-          <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-200 rounded-xl p-4">
+          <div className="bg-white/80 backdrop-blur-xl border border-white/40 rounded-2xl p-4 shadow-xl transform hover:scale-105 transition-all duration-200">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 mb-1">{t('stats.inactive')}</p>
@@ -420,7 +428,7 @@ export default function PluginsPage() {
       </div>
 
       {/* Search & Filters */}
-      <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4 mb-6">
+      <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/40 p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
           {/* Search Bar */}
           <div className="flex-1 relative">
@@ -497,7 +505,7 @@ export default function PluginsPage() {
 
       {/* Plugins Grid */}
       {filteredPlugins.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-12 text-center">
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/40 p-12 text-center">
           <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -570,10 +578,10 @@ export default function PluginsPage() {
             return (
               <div 
                 key={plugin.id} 
-                className={`group bg-white rounded-xl shadow-md border-2 transition-all duration-300 hover:shadow-2xl hover:scale-105 hover:-translate-y-1 ${
+                className={`group bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border-2 transition-all duration-300 hover:shadow-2xl hover:scale-105 hover:-translate-y-1 ${
                   plugin.isActive 
-                    ? 'border-green-200 bg-gradient-to-br from-white to-green-50 hover:border-green-300' 
-                    : 'border-gray-200 hover:border-blue-300'
+                    ? 'border-green-200 bg-gradient-to-br from-white/90 to-green-50/80 hover:border-green-300' 
+                    : 'border-white/40 hover:border-blue-300'
                 }`}
               >
                 <div className="p-6">
@@ -671,7 +679,7 @@ export default function PluginsPage() {
       {/* Add/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-white/40">
             <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -851,6 +859,7 @@ export default function PluginsPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

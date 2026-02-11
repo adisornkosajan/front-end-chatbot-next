@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { apiFetch } from '@/lib/api';
 import { API_CONFIG } from '@/lib/config';
 import { useRouter } from 'next/navigation';
+import { useLocale } from 'next-intl';
 
 type TeamMember = {
   id: string;
@@ -27,13 +28,14 @@ export default function TeamPage() {
   const token = useAuthStore((s) => s.token);
   const currentUser = useAuthStore((s) => s.user);
   const router = useRouter();
+  const locale = useLocale();
   const [mounted, setMounted] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('user');
+  const [inviteRole, setInviteRole] = useState('USER');
   const [inviting, setInviting] = useState(false);
   const [inviteUrl, setInviteUrl] = useState('');
   const [changingRole, setChangingRole] = useState<string | null>(null);
@@ -46,15 +48,19 @@ export default function TeamPage() {
   useEffect(() => {
     if (mounted) {
       if (!token) {
-        router.push('/auth/login');
+        router.push(`/${locale}/auth/login`);
       } else if (currentUser?.role !== 'ADMIN' && currentUser?.role !== 'MANAGER') {
-        router.push('/dashboard/inbox');
+        router.push(`/${locale}/dashboard/inbox`);
       }
     }
-  }, [mounted, token, currentUser, router]);
+  }, [mounted, token, currentUser, router, locale]);
 
   useEffect(() => {
-    if (mounted && token && currentUser?.role === 'ADMIN') {
+    if (
+      mounted &&
+      token &&
+      (currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER')
+    ) {
       loadData();
     }
   }, [mounted, token, currentUser]);
@@ -102,7 +108,7 @@ export default function TeamPage() {
       
       // Clear form
       setInviteEmail('');
-      setInviteRole('user');
+      setInviteRole('USER');
     } catch (error: any) {
       console.error('Failed to invite:', error);
       alert('Failed to send invitation: ' + (error.message || 'Unknown error'));
@@ -211,43 +217,51 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Team Management</h1>
-        <p className="text-gray-600">Manage team members and invite new members</p>
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto h-full overflow-y-auto bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 relative">
+      {/* Animated Background */}
+      <div className="absolute inset-0 opacity-30 pointer-events-none">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl animate-blob"></div>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000"></div>
+        <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000"></div>
       </div>
-
-      {/* Invite Button */}
-      <div className="mb-6">
-        <button
-          onClick={() => setShowInviteModal(true)}
-          className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg flex items-center gap-2"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-          </svg>
-          Invite New Member
-        </button>
-      </div>
-
-      {/* Team Members */}
-      <div className="bg-white rounded-lg shadow-md mb-6">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Team Members ({teamMembers.length})</h2>
+      
+      <div className="relative z-10">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">Team Management</h1>
+          <p className="text-gray-600">Manage team members and invite new members</p>
         </div>
-        <div className="divide-y divide-gray-200">
+
+        {/* Invite Button */}
+        <div className="mb-6">
+          <button
+            onClick={() => setShowInviteModal(true)}
+            className="px-4 sm:px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+            Invite New Member
+          </button>
+        </div>
+
+        {/* Team Members */}
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/40 mb-6 overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-white/40 bg-gradient-to-r from-blue-500/10 to-purple-500/10">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Team Members ({teamMembers.length})</h2>
+          </div>
+          <div className="divide-y divide-white/30">
           {teamMembers.map((member) => (
-            <div key={member.id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl">
+            <div key={member.id} className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-white/60 transition-all gap-4">
+              <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg flex-shrink-0">
                   {member.name?.charAt(0).toUpperCase() || '?'}
                 </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">
-                    {member.name}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
+                    <span className="truncate">{member.name}</span>
                     {member.id === currentUser?.id && (
-                      <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">You</span>
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full whitespace-nowrap">You</span>
                     )}
                   </h3>
                   <p className="text-sm text-gray-600">{member.email}</p>
@@ -455,6 +469,7 @@ export default function TeamPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

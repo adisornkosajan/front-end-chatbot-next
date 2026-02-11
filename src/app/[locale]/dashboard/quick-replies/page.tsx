@@ -106,11 +106,18 @@ export default function QuickRepliesPage() {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-8 overflow-auto">
-      <div className="max-w-6xl mx-auto">
+    <div className="h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4 sm:p-6 lg:p-8 overflow-auto relative">
+      {/* Animated Background Blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+        <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+      </div>
+
+      <div className="max-w-6xl mx-auto relative z-10">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Quick Replies</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">Quick Replies</h1>
           <p className="text-gray-600">Manage your saved message templates for faster responses</p>
         </div>
 
@@ -129,7 +136,7 @@ export default function QuickRepliesPage() {
 
         {/* Form */}
         {showForm && (
-          <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border-2 border-blue-200">
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 mb-6 border-2 border-white/40">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               {editingId ? 'Edit Quick Reply' : 'New Quick Reply'}
             </h2>
@@ -205,7 +212,7 @@ export default function QuickRepliesPage() {
           {quickReplies.map((qr) => (
             <div
               key={qr.id}
-              className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-200 p-5 border-2 border-gray-100 hover:border-blue-200"
+              className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-200 p-5 border-2 border-white/40 hover:border-blue-300 transform hover:scale-105"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
