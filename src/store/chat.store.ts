@@ -32,10 +32,22 @@ function dedupeMessages(list: Message[]): Message[] {
     map.set(getMessageKey(item), item);
   }
 
+  const getTimestamp = (m: Message): number => {
+    const candidates = [m.sentAt, m.createdAt, m.updatedAt];
+    for (const raw of candidates) {
+      if (!raw) continue;
+      const ts = new Date(raw).getTime();
+      if (Number.isFinite(ts)) return ts;
+    }
+    // Keep invalid timestamps at the end instead of jumping to the very top.
+    return Number.MAX_SAFE_INTEGER;
+  };
+
   return Array.from(map.values()).sort((a, b) => {
-    const aTime = new Date(a.createdAt || 0).getTime();
-    const bTime = new Date(b.createdAt || 0).getTime();
-    return aTime - bTime;
+    const aTime = getTimestamp(a);
+    const bTime = getTimestamp(b);
+    if (aTime !== bTime) return aTime - bTime;
+    return String(a.id || '').localeCompare(String(b.id || ''));
   });
 }
 

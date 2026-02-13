@@ -21,8 +21,11 @@ export default function SettingsPage() {
   });
   const [organizationData, setOrganizationData] = useState({
     name: '',
-    description: '',
+    address: '',
+    contact: '',
+    trn: '',
   });
+  const canEditOrganization = user?.role === 'SUPER_ADMIN';
 
   useEffect(() => {
     setMounted(true);
@@ -48,6 +51,27 @@ export default function SettingsPage() {
       }));
     }
   }, [user]);
+
+  useEffect(() => {
+    const loadOrganization = async () => {
+      if (!token) return;
+      try {
+        const org = await apiFetch('/api/organizations/current', token);
+        setOrganizationData({
+          name: org?.name || '',
+          address: org?.address || '',
+          contact: org?.contact || '',
+          trn: org?.trn || '',
+        });
+      } catch (error) {
+        console.error('Error loading organization:', error);
+      }
+    };
+
+    if (token) {
+      loadOrganization();
+    }
+  }, [token]);
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -344,7 +368,12 @@ export default function SettingsPage() {
                 type="text"
                 value={organizationData.name}
                 onChange={(e) => setOrganizationData({ ...organizationData, name: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white text-gray-900 font-medium"
+                readOnly={!canEditOrganization}
+                className={`w-full px-4 py-3 border-2 border-gray-300 rounded-lg outline-none transition font-medium ${
+                  canEditOrganization
+                    ? 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900'
+                    : 'bg-gray-50 text-gray-600 cursor-not-allowed'
+                }`}
                 style={{ fontSize: '15px' }}
                 placeholder="Enter organization name"
               />
@@ -352,26 +381,74 @@ export default function SettingsPage() {
 
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">
-                Description
+                Address
               </label>
               <textarea
-                value={organizationData.description}
-                onChange={(e) => setOrganizationData({ ...organizationData, description: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white text-gray-900 font-medium"
+                value={organizationData.address}
+                onChange={(e) => setOrganizationData({ ...organizationData, address: e.target.value })}
+                readOnly={!canEditOrganization}
+                className={`w-full px-4 py-3 border-2 border-gray-300 rounded-lg outline-none transition font-medium ${
+                  canEditOrganization
+                    ? 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900'
+                    : 'bg-gray-50 text-gray-600 cursor-not-allowed'
+                }`}
                 style={{ fontSize: '15px' }}
-                placeholder="Describe your organization"
+                placeholder="Enter organization address"
                 rows={3}
               />
             </div>
 
-            <div className="flex justify-end pt-2">
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Saving...' : 'Save Organization'}
-              </button>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                Contact
+              </label>
+              <input
+                type="text"
+                value={organizationData.contact}
+                onChange={(e) => setOrganizationData({ ...organizationData, contact: e.target.value })}
+                readOnly={!canEditOrganization}
+                className={`w-full px-4 py-3 border-2 border-gray-300 rounded-lg outline-none transition font-medium ${
+                  canEditOrganization
+                    ? 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900'
+                    : 'bg-gray-50 text-gray-600 cursor-not-allowed'
+                }`}
+                style={{ fontSize: '15px' }}
+                placeholder="Enter contact information"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                TRN
+              </label>
+              <input
+                type="text"
+                value={organizationData.trn}
+                onChange={(e) => setOrganizationData({ ...organizationData, trn: e.target.value })}
+                readOnly={!canEditOrganization}
+                className={`w-full px-4 py-3 border-2 border-gray-300 rounded-lg outline-none transition font-medium ${
+                  canEditOrganization
+                    ? 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900'
+                    : 'bg-gray-50 text-gray-600 cursor-not-allowed'
+                }`}
+                style={{ fontSize: '15px' }}
+                placeholder="Enter tax registration number"
+              />
+            </div>
+
+            <div className="flex justify-between items-center pt-2">
+              {!canEditOrganization && (
+                <p className="text-xs text-gray-500">Read-only. Please contact Dev to update these fields.</p>
+              )}
+              {canEditOrganization && (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="ml-auto px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Saving...' : 'Save Organization'}
+                </button>
+              )}
             </div>
           </form>
         </div>

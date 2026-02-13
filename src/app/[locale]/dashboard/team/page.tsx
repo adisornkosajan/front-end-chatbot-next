@@ -39,6 +39,10 @@ export default function TeamPage() {
   const [inviting, setInviting] = useState(false);
   const [inviteUrl, setInviteUrl] = useState('');
   const [changingRole, setChangingRole] = useState<string | null>(null);
+  const [toast, setToast] = useState<{
+    type: 'success' | 'error' | 'info';
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -65,6 +69,33 @@ export default function TeamPage() {
     }
   }, [mounted, token, currentUser]);
 
+  useEffect(() => {
+    if (!currentUser) return;
+    if (currentUser.role !== 'SUPER_ADMIN' && inviteRole === 'ADMIN') {
+      setInviteRole('USER');
+    }
+  }, [currentUser, inviteRole]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type });
+  };
+
+  const inviteRoleOptions = currentUser?.role === 'SUPER_ADMIN'
+    ? ['USER', 'MANAGER', 'ADMIN']
+    : currentUser?.role === 'ADMIN'
+    ? ['USER', 'MANAGER']
+    : ['USER'];
+
+  const assignableRoleOptions = currentUser?.role === 'SUPER_ADMIN'
+    ? ['ADMIN', 'MANAGER', 'USER']
+    : ['MANAGER', 'USER'];
+
   const loadData = async () => {
     if (!token) return;
     
@@ -79,7 +110,7 @@ export default function TeamPage() {
       setInvitations(invites);
     } catch (error: any) {
       console.error('Failed to load team data:', error);
-      alert('Failed to load team data: ' + (error.message || 'Unknown error'));
+      showToast('Failed to load team data: ' + (error.message || 'Unknown error'), 'error');
     } finally {
       setLoading(false);
     }
@@ -87,6 +118,17 @@ export default function TeamPage() {
 
   const handleInvite = async () => {
     if (!token || !inviteEmail) return;
+    const normalizedEmail = inviteEmail.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      showToast('Please enter a valid email address', 'error');
+      return;
+    }
+
+    if (currentUser?.role !== 'SUPER_ADMIN' && inviteRole === 'ADMIN') {
+      showToast('Only SUPER_ADMIN can invite Admin', 'error');
+      return;
+    }
     
     setInviting(true);
     try {
@@ -95,12 +137,12 @@ export default function TeamPage() {
         token,
         {
           method: 'POST',
-          body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+          body: JSON.stringify({ email: normalizedEmail, role: inviteRole }),
         }
       );
       
       setInviteUrl(result.inviteUrl);
-      alert('✅ Invitation sent successfully! Copy the link below and send it to them');
+      showToast('✅ Invitation sent successfully! Copy the link below and send it to them', 'success');
       
       // Reload invitations
       const invites = await apiFetch(API_CONFIG.ENDPOINTS.USERS.INVITATIONS, token);
@@ -111,7 +153,7 @@ export default function TeamPage() {
       setInviteRole('USER');
     } catch (error: any) {
       console.error('Failed to invite:', error);
-      alert('Failed to send invitation: ' + (error.message || 'Unknown error'));
+      showToast('Failed to send invitation: ' + (error.message || 'Unknown error'), 'error');
     } finally {
       setInviting(false);
     }
@@ -127,27 +169,32 @@ export default function TeamPage() {
         { method: 'DELETE' }
       );
       
-      alert('✅ Invitation canceled successfully');
+      showToast('✅ Invitation canceled successfully', 'success');
       
       // Reload invitations
       const invites = await apiFetch(API_CONFIG.ENDPOINTS.USERS.INVITATIONS, token);
       setInvitations(invites);
     } catch (error: any) {
       console.error('Failed to revoke invitation:', error);
-      alert('Failed to cancel invitation: ' + (error.message || 'Unknown error'));
+      showToast('Failed to cancel invitation: ' + (error.message || 'Unknown error'), 'error');
     }
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert('✅ Link copied to clipboard!');
+    showToast('✅ Link copied to clipboard!', 'success');
   };
 
   const handleChangeRole = async (userId: string, newRole: 'ADMIN' | 'MANAGER' | 'USER') => {
     if (!token || !currentUser) return;
     
     if (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN') {
-      alert('Only admins can change user roles');
+      showToast('Only admins can change user roles', 'error');
+      return;
+    }
+
+    if (currentUser.role !== 'SUPER_ADMIN' && newRole === 'ADMIN') {
+      showToast('Only SUPER_ADMIN can assign Admin role', 'error');
       return;
     }
 
@@ -164,14 +211,14 @@ export default function TeamPage() {
         }
       );
       
-      alert('✅ Role updated successfully');
+      showToast('✅ Role updated successfully', 'success');
       
       // Reload team members
       const members = await apiFetch(API_CONFIG.ENDPOINTS.USERS.TEAM, token);
       setTeamMembers(members.filter((member: TeamMember) => member.role !== 'SUPER_ADMIN'));
     } catch (error: any) {
       console.error('Failed to update role:', error);
-      alert('Failed to update role: ' + (error.message || 'Unknown error'));
+      showToast('Failed to update role: ' + (error.message || 'Unknown error'), 'error');
     } finally {
       setChangingRole(null);
     }
@@ -181,7 +228,7 @@ export default function TeamPage() {
     if (!token || !currentUser) return;
     
     if (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN') {
-      alert('Only admins can delete users');
+      showToast('Only admins can delete users', 'error');
       return;
     }
 
@@ -194,14 +241,14 @@ export default function TeamPage() {
         { method: 'DELETE' }
       );
       
-      alert('✅ User removed successfully');
+      showToast('✅ User removed successfully', 'success');
       
       // Reload team members
       const members = await apiFetch(API_CONFIG.ENDPOINTS.USERS.TEAM, token);
       setTeamMembers(members.filter((member: TeamMember) => member.role !== 'SUPER_ADMIN'));
     } catch (error: any) {
       console.error('Failed to delete user:', error);
-      alert('Failed to remove user: ' + (error.message || 'Unknown error'));
+      showToast('Failed to remove user: ' + (error.message || 'Unknown error'), 'error');
     }
   };
 
@@ -217,15 +264,42 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto h-full overflow-y-auto bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 relative">
+    <div className="relative h-full w-full overflow-y-auto overflow-x-hidden bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+      {toast && (
+        <div className="fixed right-4 top-4 z-[80] max-w-sm animate-fadeIn">
+          <div
+            className={`rounded-xl border px-4 py-3 shadow-2xl backdrop-blur-md ${
+              toast.type === 'success'
+                ? 'border-emerald-200 bg-emerald-50/95 text-emerald-900'
+                : toast.type === 'error'
+                ? 'border-rose-200 bg-rose-50/95 text-rose-900'
+                : 'border-blue-200 bg-blue-50/95 text-blue-900'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-base leading-none">
+                {toast.type === 'success' ? '✓' : toast.type === 'error' ? '!' : 'i'}
+              </span>
+              <p className="text-sm font-medium leading-5">{toast.message}</p>
+              <button
+                onClick={() => setToast(null)}
+                className="ml-auto rounded p-1 opacity-70 hover:opacity-100"
+                aria-label="Close notification"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Animated Background */}
-      <div className="absolute inset-0 opacity-30 pointer-events-none">
+      <div className="absolute inset-0 overflow-hidden opacity-30 pointer-events-none">
         <div className="absolute top-0 left-0 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl animate-blob"></div>
         <div className="absolute top-0 right-0 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000"></div>
         <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000"></div>
       </div>
       
-      <div className="relative z-10">
+      <div className="relative z-10 mx-auto w-full max-w-6xl p-4 sm:p-6">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">Team Management</h1>
@@ -252,37 +326,44 @@ export default function TeamPage() {
           </div>
           <div className="divide-y divide-white/30">
           {teamMembers.map((member) => (
-            <div key={member.id} className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-white/60 transition-all gap-4">
-              <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+            <div key={member.id} className="p-4 sm:p-6 hover:bg-white/60 transition-all">
+              <div className="flex items-start gap-3 sm:gap-4">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg flex-shrink-0">
                   {member.name?.charAt(0).toUpperCase() || '?'}
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 space-y-1">
                   <h3 className="font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
                     <span className="truncate">{member.name}</span>
                     {member.id === currentUser?.id && (
                       <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full whitespace-nowrap">You</span>
                     )}
                   </h3>
-                  <p className="text-sm text-gray-600">{member.email}</p>
+                  <p className="text-sm text-gray-600 break-all">{member.email}</p>
+                  <p className="text-xs text-gray-500">
+                    Joined: {new Date(member.createdAt).toLocaleDateString('en-US')}
+                  </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && member.id !== currentUser?.id ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
+                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') &&
+                member.id !== currentUser?.id &&
+                (currentUser?.role === 'SUPER_ADMIN' || member.role !== 'ADMIN') ? (
                   <>
                     <select
                       value={member.role}
                       onChange={(e) => handleChangeRole(member.id, e.target.value as 'ADMIN' | 'MANAGER' | 'USER')}
                       disabled={changingRole === member.id}
-                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <option value="ADMIN">Admin</option>
-                      <option value="MANAGER">Manager</option>
-                      <option value="USER">User</option>
+                      {assignableRoleOptions.map((role) => (
+                        <option key={role} value={role}>
+                          {role.charAt(0) + role.slice(1).toLowerCase()}
+                        </option>
+                      ))}
                     </select>
                     <button
                       onClick={() => handleDeleteUser(member.id, member.name)}
-                      className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-200 transition-colors"
+                      className="w-full sm:w-auto px-3 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-200 transition-colors"
                     >
                       Remove
                     </button>
@@ -298,9 +379,6 @@ export default function TeamPage() {
                     {member.role}
                   </span>
                 )}
-                <span className="text-xs text-gray-500">
-                  Joined: {new Date(member.createdAt).toLocaleDateString('en-US')}
-                </span>
               </div>
             </div>
           ))}
@@ -309,21 +387,21 @@ export default function TeamPage() {
 
       {/* Pending Invitations */}
       {invitations.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">Pending Invitations ({invitations.length})</h2>
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/40 overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-white/40 bg-gradient-to-r from-blue-500/10 to-purple-500/10">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Pending Invitations ({invitations.length})</h2>
           </div>
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-white/40">
             {invitations.map((invitation) => (
-              <div key={invitation.id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                <div className="flex items-center gap-4">
+              <div key={invitation.id} className="p-4 sm:p-6 hover:bg-white/60 transition-colors">
+                <div className="flex items-start gap-3 sm:gap-4">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{invitation.email}</h3>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-gray-900 break-all">{invitation.email}</h3>
                     <p className="text-sm text-gray-600">
                       Expires: {new Date(invitation.expiresAt).toLocaleDateString('en-US', { 
                         year: 'numeric', 
@@ -335,7 +413,7 @@ export default function TeamPage() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
                   <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
                     invitation.role === 'ADMIN' 
                       ? 'bg-purple-100 text-purple-700' 
@@ -345,7 +423,7 @@ export default function TeamPage() {
                   </span>
                   <button
                     onClick={() => handleRevokeInvitation(invitation.id)}
-                    className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-200 transition-colors"
+                    className="w-full sm:w-auto px-3 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-200 transition-colors"
                   >
                     Cancel
                   </button>
@@ -358,9 +436,9 @@ export default function TeamPage() {
 
       {/* Invite Modal */}
       {showInviteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4">
-            <div className="p-6 border-b border-gray-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/55 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-white/40 bg-white/95 shadow-2xl">
+            <div className="p-5 sm:p-6 border-b border-slate-200 bg-gradient-to-r from-blue-500/10 to-purple-500/10">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900">Invite New Member</h2>
                 <button
@@ -368,7 +446,7 @@ export default function TeamPage() {
                     setShowInviteModal(false);
                     setInviteUrl('');
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="rounded-lg p-1 text-gray-400 hover:bg-white hover:text-gray-700 transition-colors"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -377,38 +455,43 @@ export default function TeamPage() {
               </div>
             </div>
 
-            <div className="p-6">
+            <div className="p-5 sm:p-6">
               {inviteUrl ? (
-                <div>
-                  <div className="mb-4">
-                    <div className="flex items-center gap-2 text-green-600 mb-3">
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                    <div className="flex items-center gap-2 text-emerald-700 mb-2">
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <span className="font-semibold">Invitation Created!</span>
                     </div>
-                    <p className="text-sm text-gray-600 mb-3">Copy the link below and send it to the person you want to invite:</p>
-                    <div className="flex gap-2">
+                    <p className="text-sm text-emerald-800/80">Copy the link below and send it to the person you want to invite.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Invitation Link</p>
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <input
                         type="text"
                         value={inviteUrl}
                         readOnly
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
+                        className="flex-1 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-700"
                       />
                       <button
                         onClick={() => copyToClipboard(inviteUrl)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        className="rounded-xl bg-blue-600 px-4 py-2.5 font-semibold text-white hover:bg-blue-700 transition-colors sm:min-w-[96px]"
                       >
                         Copy
                       </button>
                     </div>
                   </div>
+
                   <button
                     onClick={() => {
                       setShowInviteModal(false);
                       setInviteUrl('');
                     }}
-                    className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+                    className="w-full rounded-xl bg-slate-200 px-4 py-2.5 font-semibold text-slate-700 hover:bg-slate-300 transition-colors"
                   >
                     Close
                   </button>
@@ -424,7 +507,7 @@ export default function TeamPage() {
                       value={inviteEmail}
                       onChange={(e) => setInviteEmail(e.target.value)}
                       placeholder="user@example.com"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-gray-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     />
                   </div>
 
@@ -435,30 +518,32 @@ export default function TeamPage() {
                     <select
                       value={inviteRole}
                       onChange={(e) => setInviteRole(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     >
-                      <option value="USER">User</option>
-                      <option value="MANAGER">Manager</option>
-                      <option value="ADMIN">Admin</option>
+                      {inviteRoleOptions.map((role) => (
+                        <option key={role} value={role}>
+                          {role.charAt(0) + role.slice(1).toLowerCase()}
+                        </option>
+                      ))}
                     </select>
-                    <p className="mt-2 text-xs text-gray-500">
+                    <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-gray-600">
                       <span className="font-semibold">User:</span> Can view and reply to messages<br/>
                       <span className="font-semibold">Manager:</span> Can manage integrations and view team<br/>
                       <span className="font-semibold">Admin:</span> Full access to all settings
                     </p>
                   </div>
 
-                  <div className="flex gap-3">
+                  <div className="flex flex-col-reverse sm:flex-row gap-3">
                     <button
                       onClick={() => setShowInviteModal(false)}
-                      className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+                      className="flex-1 rounded-xl bg-slate-200 px-4 py-2.5 font-semibold text-slate-700 transition-colors hover:bg-slate-300"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleInvite}
                       disabled={inviting || !inviteEmail}
-                      className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all font-semibold disabled:opacity-50"
+                      className="flex-1 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 font-semibold text-white transition-all hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {inviting ? 'Inviting...' : 'Invite'}
                     </button>

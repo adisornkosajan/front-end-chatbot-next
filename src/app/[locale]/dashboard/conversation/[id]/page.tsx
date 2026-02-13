@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 import { useChatStore } from '@/store/chat.store';
@@ -26,6 +26,18 @@ type CustomerSummary = {
   email?: string;
   importantKey?: string;
   updatedAt: string;
+};
+
+type ChatMessage = {
+  id: string;
+  senderType?: string;
+  content?: string;
+  contentType?: string;
+  imageUrl?: string;
+  platformMessageId?: string;
+  createdAt?: string;
+  sentAt?: string;
+  updatedAt?: string;
 };
 
 export default function ConversationPage() {
@@ -54,6 +66,74 @@ export default function ConversationPage() {
   const formatMessageTime = (date: string) => {
     const d = new Date(date);
     return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getMessageTimestamp = (m: ChatMessage): number => {
+    const candidates = [m.sentAt, m.createdAt, m.updatedAt];
+    for (const value of candidates) {
+      if (!value) continue;
+      const ts = new Date(value).getTime();
+      if (Number.isFinite(ts)) return ts;
+    }
+    return Date.now();
+  };
+
+  const getMessageTimeLabel = (m: ChatMessage): string => {
+    const candidates = [m.sentAt, m.createdAt, m.updatedAt];
+    for (const value of candidates) {
+      if (!value) continue;
+      const ts = new Date(value).getTime();
+      if (Number.isFinite(ts)) return formatMessageTime(value);
+    }
+    return '';
+  };
+
+  const isLikelyDuplicateAgentMessage = (prev: ChatMessage, current: ChatMessage): boolean => {
+    if (!prev || !current) return false;
+    if (prev.senderType !== 'agent' || current.senderType !== 'agent') return false;
+
+    const prevContent = (prev.content || '').trim();
+    const currentContent = (current.content || '').trim();
+    const prevType = (prev.contentType || 'text').toLowerCase();
+    const currentType = (current.contentType || 'text').toLowerCase();
+    const prevMedia = prev.imageUrl || '';
+    const currentMedia = current.imageUrl || '';
+
+    if (prevContent !== currentContent) return false;
+    if (prevType !== currentType) return false;
+    if (prevMedia !== currentMedia) return false;
+
+    // If both have platform message IDs and they differ, treat as different messages.
+    if (prev.platformMessageId && current.platformMessageId && prev.platformMessageId !== current.platformMessageId) {
+      return false;
+    }
+
+    const prevTs = getMessageTimestamp(prev);
+    const currentTs = getMessageTimestamp(current);
+    return Math.abs(currentTs - prevTs) <= 15000;
+  };
+
+  const visibleMessages = useMemo(() => {
+    const filtered: ChatMessage[] = [];
+    for (const message of messages as ChatMessage[]) {
+      const prev = filtered[filtered.length - 1];
+      if (prev && isLikelyDuplicateAgentMessage(prev, message)) {
+        continue;
+      }
+      filtered.push(message);
+    }
+    return filtered;
+  }, [messages]);
+
+  const getMediaUrl = (m: any): string | null => {
+    if (!m?.imageUrl || typeof m.imageUrl !== 'string') return null;
+    return m.imageUrl;
+  };
+
+  const isVideoMessage = (m: any): boolean => {
+    const contentType = String(m?.contentType || '').toLowerCase();
+    const mediaUrl = getMediaUrl(m);
+    return contentType.startsWith('video') || Boolean(mediaUrl && mediaUrl.startsWith('data:video/'));
   };
 
   // Check if message contains payment info
@@ -217,6 +297,24 @@ export default function ConversationPage() {
       });
   }, [id, token, setMessages]);
 
+  // Quick resync after page opens to avoid needing manual refresh.
+  useEffect(() => {
+    if (!token || !id) return;
+
+    const syncNow = () =>
+      apiFetch(API_CONFIG.ENDPOINTS.CONVERSATIONS.MESSAGES(id as string), token)
+        .then((data) => setMessages(data))
+        .catch(() => undefined);
+
+    const t1 = setTimeout(syncNow, 1200);
+    const t2 = setTimeout(syncNow, 3500);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [id, token, setMessages]);
+
   useEffect(() => {
     if (!token) return;
 
@@ -252,11 +350,22 @@ export default function ConversationPage() {
       };
 
       console.log('🎧 Registering message:new listener for conversation:', id);
+      const handleSocketConnected = () => {
+        if (!id) return;
+        apiFetch(API_CONFIG.ENDPOINTS.CONVERSATIONS.MESSAGES(id as string), token)
+          .then((data) => setMessages(data))
+          .catch(() => undefined);
+      };
+
       socket.on('message:new', handleNewMessage);
+      socket.on('connect', handleSocketConnected);
+      socket.on('reconnect', handleSocketConnected);
 
       return () => {
         console.log('🧹 Cleaning up message:new listener for conversation:', id);
         socket.off('message:new', handleNewMessage);
+        socket.off('connect', handleSocketConnected);
+        socket.off('reconnect', handleSocketConnected);
       };
     };
 
@@ -403,7 +512,7 @@ export default function ConversationPage() {
             </div>
           )}
 
-          {messages.length === 0 ? (
+          {visibleMessages.length === 0 ? (
             <div className="flex items-center justify-center" style={{ flex: 1 }}>
               <div className="text-center">
                 <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center">
@@ -416,17 +525,20 @@ export default function ConversationPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              {messages.map((m, index) => {
+            <div className="mt-auto">
+              {visibleMessages.map((m, index) => {
+                const currentTs = getMessageTimestamp(m);
+                const previousTs = index > 0 ? getMessageTimestamp(visibleMessages[index - 1] as ChatMessage) : 0;
+                const sameSenderAsPrevious = index > 0 && visibleMessages[index - 1]?.senderType === m.senderType;
                 const showTimestamp = index === 0 || 
-                  (messages[index - 1] && new Date(m.createdAt).getTime() - new Date(messages[index - 1].createdAt).getTime() > 300000);
+                  (visibleMessages[index - 1] && currentTs - previousTs > 300000);
                 
                 return (
-                  <div key={m.id}>
+                  <div key={m.id} className={sameSenderAsPrevious && !showTimestamp ? 'mt-1.5' : 'mt-4'}>
                     {showTimestamp && (
                       <div className="text-center my-4">
                         <span className="text-xs text-gray-500 bg-white px-3 py-1 rounded-full shadow-sm">
-                          {formatMessageTime(m.createdAt)}
+                          {getMessageTimeLabel(m as ChatMessage)}
                         </span>
                       </div>
                     )}
@@ -442,26 +554,38 @@ export default function ConversationPage() {
                             : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white backdrop-blur-md'
                         }`}
                       >
-                        {/* Show image if exists */}
-                        {(m as any).imageUrl && (
-                          <div className="mb-3 group cursor-pointer" onClick={() => window.open((m as any).imageUrl, '_blank')}>
-                            <div className="relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300">
-                              <img
-                                src={(m as any).imageUrl}
-                                alt="Message attachment"
-                                className="max-w-full transform group-hover:scale-105 transition-transform duration-500"
+                        {/* Show media attachment if exists */}
+                        {getMediaUrl(m) && (
+                          isVideoMessage(m) ? (
+                            <div className="mb-3">
+                              <video
+                                controls
+                                preload="metadata"
+                                className="max-w-full rounded-xl shadow-lg"
                                 style={{ maxHeight: '400px' }}
+                                src={getMediaUrl(m) as string}
                               />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                <div className="absolute bottom-3 right-3 flex items-center gap-2 text-white text-sm font-semibold bg-black/50 backdrop-blur-sm px-3 py-1.5 rounded-lg">
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                  </svg>
-                                  <span>View full size</span>
+                            </div>
+                          ) : (
+                            <div className="mb-3 group cursor-pointer" onClick={() => window.open(getMediaUrl(m) as string, '_blank')}>
+                              <div className="relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300">
+                                <img
+                                  src={getMediaUrl(m) as string}
+                                  alt="Message attachment"
+                                  className="max-w-full transform group-hover:scale-105 transition-transform duration-500"
+                                  style={{ maxHeight: '400px' }}
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                  <div className="absolute bottom-3 right-3 flex items-center gap-2 text-white text-sm font-semibold bg-black/50 backdrop-blur-sm px-3 py-1.5 rounded-lg">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                    <span>View full size</span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
+                          )
                         )}
                         
                         {/* Show content only if not empty */}
@@ -472,9 +596,9 @@ export default function ConversationPage() {
                         )}
                         
                         {/* Show QR Code button for payment messages */}
-                        {m.senderType !== 'customer' && isPaymentMessage(m.content) && (
+                        {m.senderType !== 'customer' && isPaymentMessage(m.content || '') && (
                           <button
-                            onClick={() => handleShowQRCode(m.content)}
+                            onClick={() => handleShowQRCode(m.content || '')}
                             className="mt-3 w-full bg-white text-blue-600 hover:bg-blue-50 font-semibold py-2.5 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 border-2 border-blue-200"
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -487,7 +611,7 @@ export default function ConversationPage() {
                         <div className={`text-xs mt-2 ${
                           m.senderType === 'customer' ? 'text-gray-400' : 'text-blue-100'
                         }`}>
-                          {formatMessageTime(m.createdAt)}
+                          {getMessageTimeLabel(m as ChatMessage)}
                         </div>
                       </div>
                     </div>

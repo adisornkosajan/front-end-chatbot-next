@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '@/store/auth.store';
+import { useChatStore } from '@/store/chat.store';
 import { apiFetch } from '@/lib/api';
 import { API_CONFIG, getApiUrl } from '@/lib/config';
 
@@ -29,6 +30,14 @@ export default function MessageInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isSendingRef = useRef(false);
   const token = useAuthStore((s) => s.token);
+  const addMessage = useChatStore((s) => s.addMessage);
+
+  const pickMessageFromResponse = (payload: any) => {
+    if (payload?.id) return payload;
+    if (payload?.data?.id) return payload.data;
+    if (payload?.message?.id) return payload.message;
+    return null;
+  };
 
   useEffect(() => {
     if (token) {
@@ -74,12 +83,15 @@ export default function MessageInput({
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith('image/')) {
-        setError('Please select an image file');
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+      if (!isImage && !isVideo) {
+        setError('Please select an image or video file');
         return;
       }
-      if (file.size > 5 * 1024 * 1024) {
-        setError('Image size must be less than 5MB');
+      const maxSize = isVideo ? 20 * 1024 * 1024 : 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        setError(isVideo ? 'Video size must be less than 20MB' : 'Image size must be less than 5MB');
         return;
       }
       setSelectedImage(file);
@@ -114,14 +126,14 @@ export default function MessageInput({
 
     try {
       if (selectedImage) {
-        // Send with image
+        // Send with media (image/video)
         const formData = new FormData();
         formData.append('conversationId', conversationId);
         formData.append('content', text.trim() || '');
-        formData.append('image', selectedImage);
+        formData.append('media', selectedImage);
         formData.append('agentId', 'null');
 
-        await fetch(getApiUrl(API_CONFIG.ENDPOINTS.CONVERSATIONS.SEND), {
+        const sentMessage = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.CONVERSATIONS.SEND), {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -131,9 +143,11 @@ export default function MessageInput({
           if (!res.ok) throw new Error('Failed to send message');
           return res.json();
         });
+        const normalizedMessage = pickMessageFromResponse(sentMessage);
+        if (normalizedMessage) addMessage(normalizedMessage);
       } else {
         // Send text only
-        await apiFetch(API_CONFIG.ENDPOINTS.CONVERSATIONS.SEND, token, {
+        const sentMessage = await apiFetch(API_CONFIG.ENDPOINTS.CONVERSATIONS.SEND, token, {
           method: 'POST',
           body: JSON.stringify({
             conversationId,
@@ -141,6 +155,8 @@ export default function MessageInput({
             agentId: null,
           }),
         });
+        const normalizedMessage = pickMessageFromResponse(sentMessage);
+        if (normalizedMessage) addMessage(normalizedMessage);
       }
 
       setText('');
@@ -167,15 +183,23 @@ export default function MessageInput({
         </div>
       )}
       <div className="p-3 sm:p-4">
-        {/* Image Preview */}
+        {/* Media Preview */}
         {imagePreview && (
           <div className="mb-4 relative inline-block animate-fadeIn">
             <div className="relative group">
-              <img
-                src={imagePreview}
-                alt="Preview"
-                className="max-w-xs max-h-48 rounded-xl border-2 border-blue-400 shadow-lg hover:shadow-xl transition-all duration-300 transform group-hover:scale-[1.02]"
-              />
+              {selectedImage?.type.startsWith('video/') ? (
+                <video
+                  src={imagePreview}
+                  controls
+                  className="max-w-xs max-h-48 rounded-xl border-2 border-blue-400 shadow-lg hover:shadow-xl transition-all duration-300 transform group-hover:scale-[1.02]"
+                />
+              ) : (
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="max-w-xs max-h-48 rounded-xl border-2 border-blue-400 shadow-lg hover:shadow-xl transition-all duration-300 transform group-hover:scale-[1.02]"
+                />
+              )}
               <button
                 onClick={removeImage}
                 className="absolute -top-3 -right-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full p-2 hover:from-red-600 hover:to-pink-600 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110 active:scale-95"
@@ -202,7 +226,7 @@ export default function MessageInput({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,video/*"
             onChange={handleImageSelect}
             className="hidden"
             disabled={loading}
@@ -212,7 +236,7 @@ export default function MessageInput({
             className="group relative p-3 bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-blue-600 hover:text-blue-700 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 border border-blue-200 hover:border-blue-300"
             disabled={loading}
             type="button"
-            title="Upload Image"
+            title="Upload Image/Video"
           >
             <svg className="w-5 h-5 transform group-hover:rotate-12 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />

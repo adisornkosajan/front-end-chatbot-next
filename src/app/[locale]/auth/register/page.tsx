@@ -11,6 +11,9 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [organizationName, setOrganizationName] = useState('');
+  const [address, setAddress] = useState('');
+  const [contact, setContact] = useState('');
+  const [trn, setTrn] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -33,6 +36,9 @@ export default function RegisterPage() {
           password,
           name,
           organizationName,
+          address,
+          contact,
+          trn,
         }),
       });
 
@@ -147,6 +153,51 @@ export default function RegisterPage() {
                 placeholder="Organization Name"
                 value={organizationName}
                 onChange={(e) => setOrganizationName(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <div>
+              <label htmlFor="address" className="block text-xs sm:text-sm font-bold text-gray-800 mb-2">
+                Address (Optional)
+              </label>
+              <textarea
+                id="address"
+                name="address"
+                rows={3}
+                className="w-full px-3 sm:px-4 py-3 sm:py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-900 font-medium placeholder-gray-400 bg-gray-50 hover:bg-white text-sm sm:text-base"
+                placeholder="Organization address"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <div>
+              <label htmlFor="contact" className="block text-xs sm:text-sm font-bold text-gray-800 mb-2">
+                Contact (Optional)
+              </label>
+              <input
+                id="contact"
+                name="contact"
+                type="text"
+                className="w-full px-3 sm:px-4 py-3 sm:py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-900 font-medium placeholder-gray-400 bg-gray-50 hover:bg-white text-sm sm:text-base"
+                placeholder="Phone / contact information"
+                value={contact}
+                onChange={(e) => setContact(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <div>
+              <label htmlFor="trn" className="block text-xs sm:text-sm font-bold text-gray-800 mb-2">
+                TRN (Optional)
+              </label>
+              <input
+                id="trn"
+                name="trn"
+                type="text"
+                className="w-full px-3 sm:px-4 py-3 sm:py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-900 font-medium placeholder-gray-400 bg-gray-50 hover:bg-white text-sm sm:text-base"
+                placeholder="Tax registration number"
+                value={trn}
+                onChange={(e) => setTrn(e.target.value)}
                 disabled={loading}
               />
             </div>
