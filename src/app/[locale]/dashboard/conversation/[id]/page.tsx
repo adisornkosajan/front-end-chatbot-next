@@ -19,6 +19,15 @@ type User = {
   role: string;
 };
 
+type CustomerSummary = {
+  id: string;
+  name?: string;
+  mobile?: string;
+  email?: string;
+  importantKey?: string;
+  updatedAt: string;
+};
+
 export default function ConversationPage() {
   const { id } = useParams();
   const token = useAuthStore((s) => s.token);
@@ -36,6 +45,8 @@ export default function ConversationPage() {
   const [showQRCode, setShowQRCode] = useState(false);
   const [qrPhoneNumber, setQRPhoneNumber] = useState('');
   const [qrAmount, setQRAmount] = useState<number | undefined>(undefined);
+  const [aiSummary, setAiSummary] = useState<CustomerSummary | null>(null);
+  const [generatingSummary, setGeneratingSummary] = useState(false);
 
   // Get conversation at the top level (before any conditional returns)
   const conversation = conversations.find((c) => c.id === id);
@@ -80,6 +91,14 @@ export default function ConversationPage() {
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
   }, [messages]);
+
+  useEffect(() => {
+    if (!token || !id) return;
+
+    apiFetch(`/api/customer-summaries/conversation/${id}`, token)
+      .then((data) => setAiSummary(data))
+      .catch(() => setAiSummary(null));
+  }, [id, token]);
 
   // Load organization users
   useEffect(() => {
@@ -158,6 +177,25 @@ export default function ConversationPage() {
     } catch (err: any) {
       console.error('❌ Failed to resume AI:', err);
       alert('Failed to resume AI: ' + (err.message || 'Unknown error'));
+    }
+  };
+
+  const handleGenerateSummary = async () => {
+    if (!token || !id) return;
+
+    setGeneratingSummary(true);
+    try {
+      const summary = await apiFetch(
+        `/api/customer-summaries/conversation/${id}/generate`,
+        token,
+        { method: 'POST' },
+      );
+      setAiSummary(summary);
+      alert('AI summary generated');
+    } catch (err: any) {
+      alert('Failed to generate AI summary: ' + (err.message || 'Unknown error'));
+    } finally {
+      setGeneratingSummary(false);
     }
   };
 
@@ -281,10 +319,10 @@ export default function ConversationPage() {
       </div>
       
       {/* Main Conversation Area */}
-      <div className="flex-1 flex flex-col relative z-10">
+      <div className="flex-1 min-w-0 flex flex-col relative z-10">
         {/* Header */}
         {conversation && (
-          <div className="bg-white/80 backdrop-blur-xl border-b border-white/20 px-3 sm:px-6 py-3 sm:py-4 shadow-lg">
+          <div className="relative z-40 bg-white/80 backdrop-blur-xl border-b border-white/20 px-3 sm:px-6 py-3 sm:py-4 shadow-lg">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
               <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg flex-shrink-0">
@@ -313,6 +351,14 @@ export default function ConversationPage() {
 
               {/* Right side controls */}
               <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                <button
+                  onClick={handleGenerateSummary}
+                  disabled={generatingSummary}
+                  className="px-3 sm:px-4 py-2 rounded-lg font-semibold transition-all shadow-md bg-white text-indigo-700 border-2 border-indigo-200 hover:bg-indigo-50 disabled:opacity-50 text-sm sm:text-base"
+                >
+                  {generatingSummary ? 'Generating...' : 'AI Summary'}
+                </button>
+
                 {/* Notes Toggle Button */}
                 <button
                   onClick={() => setShowNotes(!showNotes)}
@@ -346,7 +392,17 @@ export default function ConversationPage() {
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6 messages-container backdrop-blur-sm" style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className="relative z-10 flex-1 overflow-y-auto p-3 sm:p-6 messages-container backdrop-blur-sm" style={{ display: 'flex', flexDirection: 'column' }}>
+          {aiSummary?.importantKey && (
+            <div className="mb-4 bg-white/95 border border-indigo-200 rounded-xl p-4 shadow-sm">
+              <p className="text-xs font-bold text-indigo-700 uppercase tracking-wide mb-2">AI Insight</p>
+              <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">{aiSummary.importantKey}</pre>
+              <p className="text-xs text-gray-500 mt-2">
+                Updated: {new Date(aiSummary.updatedAt).toLocaleString()}
+              </p>
+            </div>
+          )}
+
           {messages.length === 0 ? (
             <div className="flex items-center justify-center" style={{ flex: 1 }}>
               <div className="text-center">
@@ -450,7 +506,7 @@ export default function ConversationPage() {
       {showNotes && (
         <>
           {/* Desktop Sidebar */}
-          <div className="hidden lg:block w-96 border-l-2 border-gray-200 shadow-xl flex-col">
+          <div className="hidden lg:block relative z-30 w-96 border-l-2 border-gray-200 shadow-xl bg-white">
             <NotesPanel conversationId={id as string} />
           </div>
           

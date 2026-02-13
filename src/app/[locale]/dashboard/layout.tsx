@@ -29,7 +29,7 @@ export default function DashboardLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Check if user is admin
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   const isManager = user?.role === 'MANAGER';
   const canManage = isAdmin || isManager;
   const platformRole = user?.platformRole || 'NONE';

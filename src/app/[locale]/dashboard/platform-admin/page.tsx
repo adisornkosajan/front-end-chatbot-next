@@ -33,7 +33,10 @@ export default function PlatformAdminPage() {
   const [workingOrgId, setWorkingOrgId] = useState<string | null>(null);
 
   const platformRole = user?.platformRole || 'NONE';
-  const canAccess = platformRole === 'OWNER' || platformRole === 'SUPPORT_ADMIN';
+  const canAccess =
+    user?.role === 'SUPER_ADMIN' ||
+    platformRole === 'OWNER' ||
+    platformRole === 'SUPPORT_ADMIN';
   const sortedItems = useMemo(
     () => [...items].sort((a, b) => a.name.localeCompare(b.name)),
     [items],

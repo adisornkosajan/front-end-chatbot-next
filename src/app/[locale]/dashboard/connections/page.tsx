@@ -60,7 +60,7 @@ export default function ConnectionsPage() {
     if (mounted) {
       if (!token) {
         router.push('/auth/login');
-      } else if (user?.role !== 'ADMIN') {
+      } else if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
         router.push('/dashboard/inbox');
       }
     }
@@ -819,7 +819,7 @@ export default function ConnectionsPage() {
                       <li>Go to <a href="https://developers.facebook.com" target="_blank" className="underline font-semibold">Meta for Developers</a></li>
                       <li>Create an app and add &quot;WhatsApp&quot; product</li>
                       <li>Get your Phone Number ID and Access Token</li>
-                      <li>Set up webhook to: <code className="bg-blue-100 px-2 py-0.5 rounded">https://june-mammary-abigail.ngrok-free.dev/api/webhooks/whatsapp</code></li>
+                      <li>Set up webhook to: <code className="bg-blue-100 px-2 py-0.5 rounded">https://app.nighttime77.win/api/webhooks/whatsapp</code></li>
                     </ol>
                     <p className="mt-2"><a href="/WHATSAPP-SETUP-GUIDE.md" target="_blank" className="underline font-bold">📖 View Full Setup Guide</a></p>
                   </div>

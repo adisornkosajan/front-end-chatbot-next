@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { apiFetch } from '@/lib/api';
-import { API_CONFIG } from '@/lib/config';
+import { API_CONFIG, getApiUrl } from '@/lib/config';
 
 interface QuickReply {
   id: string;
@@ -27,6 +27,7 @@ export default function MessageInput({
   const [filteredReplies, setFilteredReplies] = useState<QuickReply[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isSendingRef = useRef(false);
   const token = useAuthStore((s) => s.token);
 
   useEffect(() => {
@@ -100,12 +101,14 @@ export default function MessageInput({
   };
 
   async function send() {
+    if (isSendingRef.current || loading) return;
     if (!text.trim() && !selectedImage) return;
     if (!token) {
       setError('Not authenticated');
       return;
     }
 
+    isSendingRef.current = true;
     setLoading(true);
     setError('');
 
@@ -118,7 +121,7 @@ export default function MessageInput({
         formData.append('image', selectedImage);
         formData.append('agentId', 'null');
 
-        await fetch(API_CONFIG.BASE_URL + API_CONFIG.ENDPOINTS.CONVERSATIONS.SEND, {
+        await fetch(getApiUrl(API_CONFIG.ENDPOINTS.CONVERSATIONS.SEND), {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -146,6 +149,7 @@ export default function MessageInput({
       setError(err.message || 'Failed to send message');
       console.error('Send message error:', err);
     } finally {
+      isSendingRef.current = false;
       setLoading(false);
     }
   }
@@ -267,6 +271,7 @@ export default function MessageInput({
                   if (e.key === 'Enter' && !e.shiftKey && !loading) {
                     e.preventDefault();
                     if (!showQuickReplies) {
+                      if (e.repeat) return;
                       send();
                     }
                   }

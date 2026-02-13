@@ -318,7 +318,7 @@ export default function NotesPanel({ conversationId }: { conversationId: string 
 // Internal Notes Component with Customer Summary
 function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, newNoteTags, setNewNoteTags, customTag, setCustomTag, showAddForm, setShowAddForm, editingNote, setEditingNote, editContent, setEditContent, editTags, setEditTags, viewingHistory, setViewingHistory, noteHistory, handleCreateNote, handleUpdateNote, handleDeleteNote, handleTogglePin, loadNoteHistory, getNoteIcon, getNoteColor, user, summary, summaryForm, setSummaryForm, handleSaveSummary, savingSummary }: any) {
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="relative z-40 flex flex-col h-full bg-white">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
         <div className="flex items-center gap-2 mb-2">
@@ -565,9 +565,10 @@ function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, newNo
       </div>
 
       {/* Add Note Section */}
-      <div className="p-4 border-t-2 border-gray-300 bg-gray-50">
+      <div className="relative z-50 p-4 border-t-2 border-gray-300 bg-gray-50">
         {!showAddForm ? (
           <button
+            type="button"
             onClick={() => setShowAddForm(true)}
             className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
           >

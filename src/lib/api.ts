@@ -49,6 +49,11 @@ export async function apiFetch(
     return res.json();
   } catch (error) {
     console.error('API Fetch Error:', error);
+    if (error instanceof TypeError) {
+      throw new Error(
+        'Network error: unable to reach API. Please verify API URL, HTTPS/CORS, and Cloudflare firewall settings.',
+      );
+    }
     throw error;
   }
 }

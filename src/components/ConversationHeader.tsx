@@ -115,7 +115,7 @@ export default function ConversationHeader({
   const assignedAgent = agents.find((a) => a.id === assignedAgentId);
 
   return (
-    <div className="flex items-center gap-2 sm:gap-3">
+    <div className="relative z-50 flex items-center gap-2 sm:gap-3">
       {/* Status Dropdown */}
       <div className="relative">
         <button
@@ -133,10 +133,10 @@ export default function ConversationHeader({
         {showStatusMenu && (
           <>
             <div 
-              className="fixed inset-0 z-10" 
+              className="fixed inset-0 z-40" 
               onClick={() => setShowStatusMenu(false)}
             />
-            <div className="absolute top-full left-0 mt-2 w-40 sm:w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20">
+            <div className="absolute top-full left-0 mt-2 w-40 sm:w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
               {STATUS_OPTIONS.map((status) => (
                 <button
                   key={status.value}
@@ -172,10 +172,10 @@ export default function ConversationHeader({
         {showAgentMenu && (
           <>
             <div 
-              className="fixed inset-0 z-10" 
+              className="fixed inset-0 z-40" 
               onClick={() => setShowAgentMenu(false)}
             />
-            <div className="absolute top-full right-0 mt-2 w-64 sm:w-72 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20 max-h-80 overflow-y-auto">
+            <div className="absolute top-full right-0 mt-2 w-64 sm:w-72 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 max-h-80 overflow-y-auto">
               {!assignedAgentId && (
                 <button
                   onClick={takeConversation}

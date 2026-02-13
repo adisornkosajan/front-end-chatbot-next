@@ -11,7 +11,7 @@ type TeamMember = {
   id: string;
   name: string;
   email: string;
-  role: 'ADMIN' | 'MANAGER' | 'USER';
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'USER';
   createdAt: string;
 };
 
@@ -49,7 +49,7 @@ export default function TeamPage() {
     if (mounted) {
       if (!token) {
         router.push(`/${locale}/auth/login`);
-      } else if (currentUser?.role !== 'ADMIN' && currentUser?.role !== 'MANAGER') {
+      } else if (currentUser?.role !== 'ADMIN' && currentUser?.role !== 'SUPER_ADMIN' && currentUser?.role !== 'MANAGER') {
         router.push(`/${locale}/dashboard/inbox`);
       }
     }
@@ -59,7 +59,7 @@ export default function TeamPage() {
     if (
       mounted &&
       token &&
-      (currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER')
+      (currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'MANAGER')
     ) {
       loadData();
     }
@@ -146,7 +146,7 @@ export default function TeamPage() {
   const handleChangeRole = async (userId: string, newRole: 'ADMIN' | 'MANAGER' | 'USER') => {
     if (!token || !currentUser) return;
     
-    if (currentUser.role !== 'ADMIN') {
+    if (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN') {
       alert('Only admins can change user roles');
       return;
     }
@@ -180,7 +180,7 @@ export default function TeamPage() {
   const handleDeleteUser = async (userId: string, userName: string) => {
     if (!token || !currentUser) return;
     
-    if (currentUser.role !== 'ADMIN') {
+    if (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN') {
       alert('Only admins can delete users');
       return;
     }
@@ -268,7 +268,7 @@ export default function TeamPage() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                {currentUser?.role === 'ADMIN' && member.id !== currentUser?.id ? (
+                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && member.id !== currentUser?.id ? (
                   <>
                     <select
                       value={member.role}

@@ -33,7 +33,7 @@ export default function SettingsPage() {
     if (mounted) {
       if (!token) {
         router.push('/auth/login');
-      } else if (user?.role !== 'ADMIN') {
+      } else if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
         router.push('/dashboard/inbox');
       }
     }
