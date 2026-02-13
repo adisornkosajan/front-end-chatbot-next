@@ -341,17 +341,17 @@ export default function AISettingsPage() {
 
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">
-                System Prompt <span className="text-gray-500 text-xs font-normal">(กำหนดบทบาทและข้อมูลธุรกิจ)</span>
+                System Prompt <span className="text-gray-500 text-xs font-normal">(Define role and business details)</span>
               </label>
               <textarea
                 value={aiConfig.systemPrompt}
                 onChange={(e) => setAiConfig({ ...aiConfig, systemPrompt: e.target.value })}
                 className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition placeholder:text-gray-500"
-                placeholder="คุณคือพนักงานต้อนรับของร้าน [ชื่อร้าน]&#10;ประเภทธุรกิจ: [เช่น ร้านนวด, ร้านอาหาร, โรงแรม]&#10;เวลาเปิด-ปิด: [เช่น 09:00-21:00 น.]&#10;บริการหลัก: [เช่น นวดไทย, นวดน้ำมัน, นวดฝ่าเท้า]&#10;ราคา: [ระบุราคาบริการ]&#10;ที่อยู่: [ที่อยู่ร้าน]&#10;เบอร์โทร: [เบอร์ติดต่อ]&#10;&#10;คุณต้องตอบคำถามลูกค้าอย่างสุภาพ ให้ข้อมูลที่ถูกต้อง และช่วยจองคิวหรือให้คำแนะนำเกี่ยวกับบริการ"
+                placeholder="You are the front-desk assistant for [Business Name].&#10;Business type: [e.g. spa, restaurant, hotel]&#10;Opening hours: [e.g. 09:00-21:00]&#10;Main services: [list services]&#10;Pricing: [service prices]&#10;Address: [business address]&#10;Phone: [contact number]&#10;&#10;Reply politely, provide accurate information, and assist customers with booking and service recommendations."
                 rows={8}
               />
               <p className="text-xs text-gray-500 mt-1">
-                💡 <strong>คำแนะนำ:</strong> ระบุประเภทธุรกิจ, เวลาเปิดปิด, บริการ, ราคา, ที่อยู่ เพื่อให้ AI ตอบคำถามลูกค้าได้ถูกต้อง
+                💡 <strong>Tip:</strong> Include business type, hours, services, pricing, and address so AI can answer accurately.
               </p>
             </div>
 

@@ -308,7 +308,7 @@ export default function ConnectionsPage() {
       setFacebookPages(formattedNumbers);
     } catch (error: any) {
       console.error('Failed to load WhatsApp numbers:', error);
-      alert('ไม่สามารถโหลด WhatsApp Business Accounts ได้\n\nข้อผิดพลาด: ' + (error.message || 'Unknown error') + '\n\nโปรดใช้ตัวเลือก "กรอกข้อมูลเอง" แทน');
+      alert('Unable to load WhatsApp Business Accounts.\n\nError: ' + (error.message || 'Unknown error') + '\n\nPlease use the "Manual Setup" option instead.');
       setSelectedPlatform(null);
       setShowWhatsAppModal(true);
     } finally {
@@ -379,7 +379,7 @@ export default function ConnectionsPage() {
   };
 
   const handleDisconnectPlatform = async (platformId: string) => {
-    if (!confirm('คุณแน่ใจหรือไม่ที่จะยกเลิกการเชื่อมต่อ?')) return;
+    if (!confirm('Are you sure you want to disconnect?')) return;
 
     try {
       await apiFetch(`/api/platforms/${platformId}`, token!, {
@@ -387,7 +387,7 @@ export default function ConnectionsPage() {
       });
 
       await loadConnectedPlatforms();
-      alert('ยกเลิกการเชื่อมต่อสำเร็จ');
+      alert('Disconnected successfully');
     } catch (error: any) {
       console.error('Error disconnecting platform:', error);
       alert(error.message || 'Failed to disconnect platform');
@@ -413,7 +413,7 @@ export default function ConnectionsPage() {
 
       await loadConnectedPlatforms();
       setEditingPlatform(null);
-      alert('อัปเดทข้อมูลสำเร็จ');
+      alert('Updated successfully');
     } catch (error: any) {
       console.error('Error updating platform:', error);
       alert(error.message || 'Failed to update platform');

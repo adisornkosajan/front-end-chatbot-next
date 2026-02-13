@@ -44,7 +44,7 @@ export default function PromptPayQRCode({ phoneNumber, amount, onClose }: Prompt
       const data = await response.json();
       setQRCodeImage(data.qrCodeImage);
     } catch (err) {
-      setError('ไม่สามารถสร้าง QR Code ได้');
+      setError('Unable to generate QR Code');
       console.error(err);
     } finally {
       setLoading(false);
@@ -63,7 +63,7 @@ export default function PromptPayQRCode({ phoneNumber, amount, onClose }: Prompt
               </div>
               <div>
                 <h3 className="text-xl font-bold">PromptPay QR Code</h3>
-                <p className="text-blue-100 text-sm">สแกนเพื่อชำระเงิน</p>
+                <p className="text-blue-100 text-sm">Scan to pay</p>
               </div>
             </div>
             {onClose && (
@@ -84,7 +84,7 @@ export default function PromptPayQRCode({ phoneNumber, amount, onClose }: Prompt
           {loading && (
             <div className="flex flex-col items-center gap-4">
               <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent"></div>
-              <p className="text-gray-600">กำลังสร้าง QR Code...</p>
+              <p className="text-gray-600">Generating QR Code...</p>
             </div>
           )}
 
@@ -96,7 +96,7 @@ export default function PromptPayQRCode({ phoneNumber, amount, onClose }: Prompt
                 onClick={generateQRCode}
                 className="mt-3 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors"
               >
-                ลองอีกครั้ง
+                Try again
               </button>
             </div>
           )}
@@ -115,14 +115,14 @@ export default function PromptPayQRCode({ phoneNumber, amount, onClose }: Prompt
               {/* Payment Info */}
               <div className="w-full bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600 text-sm">เบอร์โทรศัพท์</span>
+                  <span className="text-gray-600 text-sm">Phone number</span>
                   <span className="font-semibold text-gray-900">{phoneNumber}</span>
                 </div>
                 {amount && amount > 0 && (
                   <div className="flex items-center justify-between border-t border-gray-200 pt-2">
-                    <span className="text-gray-600 text-sm">จำนวนเงิน</span>
+                    <span className="text-gray-600 text-sm">Amount</span>
                     <span className="font-bold text-xl text-blue-600">
-                      ฿{amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ฿{amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 )}
@@ -131,7 +131,7 @@ export default function PromptPayQRCode({ phoneNumber, amount, onClose }: Prompt
               {/* Instructions */}
               <div className="w-full bg-blue-50 border border-blue-100 rounded-xl p-4">
                 <p className="text-sm text-blue-800 text-center">
-                  📱 เปิดแอปธนาคาร → สแกน QR Code → ยืนยันการชำระเงิน
+                  📱 Open your banking app → Scan QR Code → Confirm payment
                 </p>
               </div>
 
@@ -148,7 +148,7 @@ export default function PromptPayQRCode({ phoneNumber, amount, onClose }: Prompt
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                บันทึก QR Code
+                Save QR Code
               </button>
             </div>
           )}

@@ -21,20 +21,31 @@ export default function DashboardLayout({
   const locale = useLocale();
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
+  const originalUser = useAuthStore((s) => s.originalUser);
+  const isImpersonating = useAuthStore((s) => s.isImpersonating);
+  const impersonationContext = useAuthStore((s) => s.impersonationContext);
+  const stopImpersonation = useAuthStore((s) => s.stopImpersonation);
+  const logout = useAuthStore((s) => s.logout);
   const isHydrated = useAuthStore((s) => s.isHydrated);
   const setConversations = useChatStore((s) => s.setConversations);
   const pathname = usePathname();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [canAccessPluginsFeature, setCanAccessPluginsFeature] = useState(false);
   
   // Check if user is admin
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   const isManager = user?.role === 'MANAGER';
   const canManage = isAdmin || isManager;
+  const canAccessPluginsByRole = isAdmin;
   const platformRole = user?.platformRole || 'NONE';
   const canAccessPlatformAdmin =
     platformRole === 'OWNER' || platformRole === 'SUPPORT_ADMIN';
+  const footerUser = isImpersonating ? originalUser : user;
+  const footerIsAdmin =
+    footerUser?.role === 'ADMIN' || footerUser?.role === 'SUPER_ADMIN';
+  const footerIsManager = footerUser?.role === 'MANAGER';
 
   // Wait for Zustand to hydrate from localStorage
   useEffect(() => {
@@ -76,6 +87,30 @@ export default function DashboardLayout({
       disconnectSocket();
     };
   }, [token, setConversations, isLoading]);
+
+  useEffect(() => {
+    if (!token || isLoading || !canAccessPluginsByRole) {
+      setCanAccessPluginsFeature(false);
+      return;
+    }
+
+    let isMounted = true;
+    apiFetch('/api/licensing/features/PLUGINS', token)
+      .then((data) => {
+        if (isMounted) {
+          setCanAccessPluginsFeature(Boolean(data?.hasAccess));
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setCanAccessPluginsFeature(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token, isLoading, canAccessPluginsByRole]);
 
   // Show loading state while hydrating
   if (isLoading) {
@@ -227,20 +262,22 @@ export default function DashboardLayout({
                   <span>{t('platforms')}</span>
                 </Link>
 
-                <Link
-                  href={`/${locale}/dashboard/plugins`}
-                  onClick={() => setIsSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
-                    pathname?.includes('/plugins')
-                      ? 'bg-blue-50 text-blue-600 font-semibold'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                  <span>{t('plugins')}</span>
-                </Link>
+                {canAccessPluginsByRole && canAccessPluginsFeature && (
+                  <Link
+                    href={`/${locale}/dashboard/plugins`}
+                    onClick={() => setIsSidebarOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
+                      pathname?.includes('/plugins')
+                        ? 'bg-blue-50 text-blue-600 font-semibold'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                    <span>{t('plugins')}</span>
+                  </Link>
+                )}
               </>
             )}
 
@@ -328,37 +365,56 @@ export default function DashboardLayout({
 
         {/* User Profile Footer */}
         <div className="border-t border-gray-200 p-4 bg-gray-50">
+          {isImpersonating && (
+            <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-2">
+              <p className="text-[11px] font-semibold text-amber-800 truncate">
+                Switched to Tenant: {impersonationContext?.organizationName || 'Organization'}
+              </p>
+              <p className="text-[11px] text-amber-700 truncate">
+                Active tenant user: {user?.email || impersonationContext?.targetUserEmail || '-'}
+              </p>
+              <button
+                onClick={() => {
+                  stopImpersonation();
+                  window.location.href = `/${locale}/dashboard/platform-admin`;
+                }}
+                className="mt-2 w-full rounded-md bg-amber-600 px-2 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+              >
+                Exit Tenant Mode
+              </button>
+            </div>
+          )}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow">
-              {useAuthStore.getState().user?.name?.charAt(0).toUpperCase() || 'U'}
+              {footerUser?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-semibold text-gray-900 truncate">
-                  {useAuthStore.getState().user?.name || 'User'}
+                  {footerUser?.name || 'User'}
                 </p>
-                {isAdmin && (
+                {footerIsAdmin && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
                     Admin
                   </span>
                 )}
-                {isManager && (
+                {footerIsManager && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
                     Manager
                   </span>
                 )}
               </div>
               <p className="text-xs text-gray-500 truncate">
-                {useAuthStore.getState().user?.email || ''}
+                {footerUser?.email || ''}
               </p>
             </div>
             <button
               onClick={() => {
-                useAuthStore.getState().logout();
+                logout();
                 window.location.href = `/${locale}/auth/login`;
               }}
               className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded-lg hover:bg-red-50"
-              title="ออกจากระบบ"
+              title="Logout"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -387,7 +443,7 @@ export default function DashboardLayout({
             <span className="font-bold text-gray-900">Talk-V AI</span>
           </div>
           <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow">
-            {useAuthStore.getState().user?.name?.charAt(0).toUpperCase() || 'U'}
+            {footerUser?.name?.charAt(0).toUpperCase() || 'U'}
           </div>
         </div>
         {children}

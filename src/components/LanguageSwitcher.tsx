@@ -21,7 +21,7 @@ export default function LanguageSwitcher() {
         className="appearance-none pl-4 pr-10 py-2.5 border-2 border-gray-200 rounded-lg bg-white text-gray-900 text-sm font-medium hover:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent cursor-pointer transition-all shadow-sm"
       >
         <option value="en">🇬🇧 English</option>
-        <option value="th">🇹🇭 ไทย</option>
+        <option value="th">🇹🇭 Thai</option>
       </select>
       <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

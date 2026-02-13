@@ -23,8 +23,7 @@ export default function PlatformAdminPage() {
   const router = useRouter();
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
-  const setToken = useAuthStore((s) => s.setToken);
-  const setUser = useAuthStore((s) => s.setUser);
+  const startImpersonation = useAuthStore((s) => s.startImpersonation);
 
   const [items, setItems] = useState<OrganizationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,9 +97,13 @@ export default function PlatformAdminPage() {
         throw new Error('Impersonation token is missing');
       }
 
-      setToken(result.accessToken);
       const me = await apiFetch(API_CONFIG.ENDPOINTS.AUTH.ME, result.accessToken);
-      setUser(me);
+      startImpersonation({
+        impersonationToken: result.accessToken,
+        impersonatedUser: me,
+        organizationName: result?.organization?.name,
+        targetUserEmail: result?.impersonatedUser?.email,
+      });
       router.push(`/${locale}/dashboard/inbox`);
     } catch (e: any) {
       setError(e?.message || 'Failed to impersonate organization');
@@ -158,7 +161,7 @@ export default function PlatformAdminPage() {
                       disabled={workingOrgId === org.id}
                       className="px-3 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300"
                     >
-                      {workingOrgId === org.id ? 'Impersonating...' : 'Impersonate'}
+                      {workingOrgId === org.id ? 'Switching to Tenant...' : 'Switch to Tenant'}
                     </button>
                   </div>
                   <input

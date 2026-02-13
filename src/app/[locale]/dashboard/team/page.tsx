@@ -75,7 +75,7 @@ export default function TeamPage() {
         apiFetch(API_CONFIG.ENDPOINTS.USERS.INVITATIONS, token),
       ]);
       
-      setTeamMembers(members);
+      setTeamMembers(members.filter((member: TeamMember) => member.role !== 'SUPER_ADMIN'));
       setInvitations(invites);
     } catch (error: any) {
       console.error('Failed to load team data:', error);
@@ -168,7 +168,7 @@ export default function TeamPage() {
       
       // Reload team members
       const members = await apiFetch(API_CONFIG.ENDPOINTS.USERS.TEAM, token);
-      setTeamMembers(members);
+      setTeamMembers(members.filter((member: TeamMember) => member.role !== 'SUPER_ADMIN'));
     } catch (error: any) {
       console.error('Failed to update role:', error);
       alert('Failed to update role: ' + (error.message || 'Unknown error'));
@@ -198,7 +198,7 @@ export default function TeamPage() {
       
       // Reload team members
       const members = await apiFetch(API_CONFIG.ENDPOINTS.USERS.TEAM, token);
-      setTeamMembers(members);
+      setTeamMembers(members.filter((member: TeamMember) => member.role !== 'SUPER_ADMIN'));
     } catch (error: any) {
       console.error('Failed to delete user:', error);
       alert('Failed to remove user: ' + (error.message || 'Unknown error'));

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
@@ -33,19 +33,20 @@ export default function PluginsPage() {
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedPlugins, setSelectedPlugins] = useState<string[]>([]);
+  const [canAccessPluginsFeature, setCanAccessPluginsFeature] = useState<boolean | null>(null);
 
   // 🎯 กำหนด Plugin Types ที่อนุญาตให้ลูกค้าใช้งาน
   // แก้ไขตรงนี้เพื่อเปิด/ปิด Plugin Types
   const ALLOWED_PLUGIN_TYPES = [
-    { value: 'auto-reply', label: '💬 Auto-Reply - ตอบกลับอัตโนมัติ', description: '💬 ตอบกลับอัตโนมัติตามคำสำคัญที่กำหนด' },
-    { value: 'business-hours', label: '⏰ Business Hours - เวลาทำการ', description: '⏰ ตรวจสอบเวลาทำการและแจ้งเตือนลูกค้า' },
-    { value: 'welcome-message', label: '👋 Welcome Message - ข้อความต้อนรับ', description: '👋 ส่งข้อความต้อนรับลูกค้าใหม่' },
-    { value: 'crm', label: '👥 CRM - เชื่อมต่อ CRM', description: '👥 เชื่อมต่อกับระบบ CRM (Salesforce, HubSpot)' },
-    { value: 'analytics', label: '📊 Analytics - วิเคราะห์ข้อมูล', description: '📊 วิเคราะห์ข้อมูลและ sentiment ของข้อความ' },
-    { value: 'marketing', label: '📧 Marketing - การตลาด', description: '📧 ส่งโปรโมชั่นและข้อความการตลาดอัตโนมัติ' },
-    { value: 'support', label: '🎧 Support - ซัพพอร์ต', description: '🎧 ระบบซัพพอร์ตและจัดการ ticket อัตโนมัติ' },
-    { value: 'storage', label: '💾 Storage - จัดเก็บไฟล์', description: '💾 จัดการและเก็บไฟล์ใน Cloud Storage' },
-    { value: 'payment', label: '💳 Payment - ชำระเงิน', description: '💳 รับชำระเงินผ่าน Payment Gateway' },
+    { value: 'auto-reply', label: '💬 Auto-Reply - Automated Responses', description: '💬 Trigger automatic replies by configured keywords' },
+    { value: 'business-hours', label: '⏰ Business Hours - Schedule', description: '⏰ Check business hours and notify customers' },
+    { value: 'welcome-message', label: '👋 Welcome Message - Greeting', description: '👋 Send welcome messages to new customers' },
+    { value: 'crm', label: '👥 CRM - Integration', description: '👥 Connect with CRM systems (Salesforce, HubSpot)' },
+    { value: 'analytics', label: '📊 Analytics - Insights', description: '📊 Analyze message data and sentiment' },
+    { value: 'marketing', label: '📧 Marketing - Campaigns', description: '📧 Send promotions and automated marketing messages' },
+    { value: 'support', label: '🎧 Support - Helpdesk', description: '🎧 Support workflow with automatic ticket handling' },
+    { value: 'storage', label: '💾 Storage - File Management', description: '💾 Manage and store files in cloud storage' },
+    { value: 'payment', label: '💳 Payment - Checkout', description: '💳 Accept payments via payment gateway' },
   ];
 
   // ถ้าต้องการปิดบาง types ให้ comment out หรือลบออก
@@ -64,9 +65,9 @@ export default function PluginsPage() {
     apiKey: JSON.stringify({
       rules: [
         {
-          keywords: ["ราคา", "เท่าไหร่"],
+          keywords: ["price", "how much"],
           matchAny: true,
-          response: "💰 ราคา 500 บาท",
+          response: "💰 Price is 500 THB",
           stopAfterMatch: false
         }
       ]
@@ -81,18 +82,43 @@ export default function PluginsPage() {
   useEffect(() => {
     if (mounted) {
       if (!token) {
-        router.push('/auth/login');
+        router.push(`/${locale}/auth/login`);
       } else if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
-        router.push('/dashboard/inbox');
+        router.push(`/${locale}/dashboard/inbox`);
       }
     }
-  }, [mounted, token, user, router]);
+  }, [mounted, token, user, router, locale]);
 
   useEffect(() => {
-    if (token && mounted) {
+    if (!mounted || !token || !user) return;
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') return;
+
+    let isMounted = true;
+    apiFetch('/api/licensing/features/PLUGINS', token)
+      .then((data) => {
+        if (!isMounted) return;
+        const hasAccess = Boolean(data?.hasAccess);
+        setCanAccessPluginsFeature(hasAccess);
+        if (!hasAccess) {
+          router.push(`/${locale}/dashboard/inbox`);
+        }
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setCanAccessPluginsFeature(false);
+        router.push(`/${locale}/dashboard/inbox`);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [mounted, token, user, router, locale]);
+
+  useEffect(() => {
+    if (token && mounted && canAccessPluginsFeature === true) {
       loadPlugins();
     }
-  }, [token, mounted]);
+  }, [token, mounted, canAccessPluginsFeature]);
 
   // Get default config for each plugin type
   const getDefaultConfig = (type: string): string => {
@@ -100,9 +126,9 @@ export default function PluginsPage() {
       'auto-reply': {
         rules: [
           {
-            keywords: ["ราคา", "เท่าไหร่"],
+            keywords: ["price", "how much"],
             matchAny: true,
-            response: "💰 ราคา 500 บาท",
+            response: "💰 Price is 500 THB",
             stopAfterMatch: false
           }
         ]
@@ -117,10 +143,10 @@ export default function PluginsPage() {
           saturday: { open: "09:00", close: "15:00" },
           sunday: { closed: true }
         },
-        closedMessage: "🔒 ปิดทำการวันนี้ค่ะ"
+        closedMessage: "🔒 We are closed today"
       },
       'welcome-message': {
-        message: "👋 สวัสดีค่ะ! ยินดีต้อนรับค่ะ มีอะไรให้ช่วยไหมคะ?"
+        message: "👋 Welcome! How can we help you today?"
       },
       'crm': {
         crmType: "salesforce",
@@ -131,7 +157,7 @@ export default function PluginsPage() {
       'analytics': {
         trackSentiment: true,
         trackKeywords: true,
-        keywords: ["ราคา", "product", "จอง", "ส่งของ"],
+        keywords: ["price", "product", "booking", "delivery"],
         generateReports: true,
         reportInterval: "daily"
       },
@@ -139,14 +165,14 @@ export default function PluginsPage() {
         autoPromotion: true,
         promotionTriggers: [
           {
-            keywords: ["ราคา", "price"],
-            promotionMessage: "🎉 โปรโมชั่นพิเศษ! ลด 20% โค้ด: NEW20"
+            keywords: ["price", "price"],
+            promotionMessage: "🎉 Special promotion! Get 20% off with code: NEW20"
           }
         ]
       },
       'support': {
         autoCreateTicket: true,
-        urgentKeywords: ["urgent", "ด่วน", "emergency", "ฉุกเฉิน"],
+        urgentKeywords: ["urgent", "urgent", "emergency", "emergency"],
         slaMinutes: 15,
         assignTo: "support-team"
       },
@@ -158,7 +184,7 @@ export default function PluginsPage() {
       },
       'payment': {
         gateway: "promptpay",
-        paymentKeywords: ["จ่ายเงิน", "ชำระเงิน", "payment"],
+        paymentKeywords: ["payment", "payment", "payment"],
         promptpayConfig: {
           phoneNumber: "0812345678",
           generateQR: true
@@ -209,7 +235,7 @@ export default function PluginsPage() {
         try {
           config = JSON.parse(formData.apiKey);
         } catch (e) {
-          alert('❌ Config JSON ไม่ถูกต้อง กรุณาตรวจสอบรูปแบบ');
+          alert('❌ Invalid Config JSON. Please check the format.');
           return;
         }
       }
@@ -296,7 +322,7 @@ export default function PluginsPage() {
 
   const handleBulkEnable = async () => {
     if (selectedPlugins.length === 0) {
-      alert('⚠️ กรุณาเลือก plugins อย่างน้อย 1 ตัว');
+      alert('⚠️ Please select at least one plugin.');
       return;
     }
 
@@ -311,15 +337,15 @@ export default function PluginsPage() {
       }
       setSelectedPlugins([]);
       loadPlugins();
-      alert('✅ เปิดใช้งาน plugins สำเร็จแล้ว!');
+      alert('✅ Plugins enabled successfully!');
     } catch (error) {
-      alert('เกิดข้อผิดพลาด');
+      alert('An error occurred');
     }
   };
 
   const handleBulkDisable = async () => {
     if (selectedPlugins.length === 0) {
-      alert('⚠️ กรุณาเลือก plugins อย่างน้อย 1 ตัว');
+      alert('⚠️ Please select at least one plugin.');
       return;
     }
 
@@ -334,11 +360,26 @@ export default function PluginsPage() {
       }
       setSelectedPlugins([]);
       loadPlugins();
-      alert('✅ ปิดใช้งาน plugins สำเร็จแล้ว!');
+      alert('✅ Plugins disabled successfully!');
     } catch (error) {
-      alert('เกิดข้อผิดพลาด');
+      alert('An error occurred');
     }
   };
+
+  if (canAccessPluginsFeature === null) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (canAccessPluginsFeature === false) {
+    return null;
+  }
 
   if (loading) {
     return (
@@ -781,13 +822,13 @@ export default function PluginsPage() {
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
                   <p className="text-xs text-blue-800">
-                    {formData.type === 'auto-reply' && '💬 Auto-Reply: {"rules":[{"keywords":["ราคา"],"response":"💰 ราคา 500 บาท","matchAny":true}]}'}
-                    {formData.type === 'business-hours' && '⏰ Business Hours: {"schedule":{"monday":{"open":"09:00","close":"18:00"}},"closedMessage":"🔒 ปิดทำการค่ะ"}'}
-                    {formData.type === 'welcome-message' && '👋 Welcome Message: {"message":"👋 สวัสดีค่ะ! มีอะไรให้ช่วยไหมคะ?"}'}
+                    {formData.type === 'auto-reply' && '💬 Auto-Reply: {"rules":[{"keywords":["price"],"response":"💰 Price is 500 THB","matchAny":true}]}'}
+                    {formData.type === 'business-hours' && '⏰ Business Hours: {"schedule":{"monday":{"open":"09:00","close":"18:00"}},"closedMessage":"🔒 We are closed right now"}'}
+                    {formData.type === 'welcome-message' && '👋 Welcome Message: {"message":"👋 Welcome! How can we help you?"}'}
                     {formData.type === 'crm' && '👥 CRM: {"crmType":"salesforce","autoCreateContact":true,"apiKey":"YOUR_API_KEY"}'}
-                    {formData.type === 'analytics' && '📊 Analytics: {"trackSentiment":true,"trackKeywords":true,"keywords":["ราคา","product"]}'}
-                    {formData.type === 'marketing' && '📧 Marketing: {"autoPromotion":true,"promotionTriggers":[{"keywords":["ราคา"],"promotionMessage":"🎉 ลด 20%!"}]}'}
-                    {formData.type === 'support' && '🎧 Support: {"autoCreateTicket":true,"urgentKeywords":["urgent","ด่วน"],"slaMinutes":15}'}
+                    {formData.type === 'analytics' && '📊 Analytics: {"trackSentiment":true,"trackKeywords":true,"keywords":["price","product"]}'}
+                    {formData.type === 'marketing' && '📧 Marketing: {"autoPromotion":true,"promotionTriggers":[{"keywords":["price"],"promotionMessage":"🎉 20% off!"}]}'}
+                    {formData.type === 'support' && '🎧 Support: {"autoCreateTicket":true,"urgentKeywords":["urgent","urgent"],"slaMinutes":15}'}
                     {formData.type === 'storage' && '💾 Storage: {"storageType":"s3","autoBackup":true,"maxFileSize":10485760}'}
                     {formData.type === 'payment' && '💳 Payment: {"gateway":"promptpay","promptpayConfig":{"phoneNumber":"0812345678"}}'}
                   </p>
@@ -796,12 +837,12 @@ export default function PluginsPage() {
                 <textarea
                   value={typeof formData.apiKey === 'string' ? formData.apiKey : JSON.stringify(formData.apiKey, null, 2)}
                   onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-                  placeholder='{"rules":[{"keywords":["ราคา","เท่าไหร่"],"matchAny":true,"response":"💰 ราคา 500 บาท","stopAfterMatch":false}]}'
+                  placeholder='{"rules":[{"keywords":["price","how much"],"matchAny":true,"response":"💰 Price is 500 THB","stopAfterMatch":false}]}'
                   rows={6}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900 font-mono text-sm placeholder:text-gray-400 bg-white"
                 />
                 <p className="mt-2 text-xs text-gray-600">
-                  📝 ใส่ JSON config ตามตัวอย่างด้านบน (สำหรับ Auto-Reply, Business Hours, Welcome Message)
+                  📝 Enter JSON config based on the example above (Auto-Reply, Business Hours, Welcome Message)
                 </p>
               </div>
 
@@ -811,7 +852,7 @@ export default function PluginsPage() {
                   <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
-                  API Credentials (สำหรับ Plugin ภายนอก - ไม่จำเป็น)
+                  API Credentials (for external plugins - optional)
                 </h3>
 
                 <div className="space-y-4">
@@ -823,12 +864,12 @@ export default function PluginsPage() {
                       type="password"
                       value={formData.apiSecret}
                       onChange={(e) => setFormData({ ...formData, apiSecret: e.target.value })}
-                      placeholder="ใส่ API Secret ถ้าต้องการเชื่อมต่อกับ API ภายนอก"
+                      placeholder="Enter API Secret if you need to connect to an external API"
                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900 font-medium placeholder:text-gray-400 bg-white"
                       style={{ fontSize: '15px' }}
                     />
                     <p className="mt-1 text-xs text-gray-500">
-                      🔒 สำหรับ Plugin ที่ต้องเชื่อมต่อกับระบบภายนอก เช่น CRM, Payment Gateway
+                      🔒 For plugins that connect to external systems, such as CRM or payment gateways
                     </p>
                   </div>
                 </div>
@@ -863,3 +904,5 @@ export default function PluginsPage() {
     </div>
   );
 }
+
+
