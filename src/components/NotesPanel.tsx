@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -54,6 +54,22 @@ type CustomerSummary = {
   updatedAt: string;
 };
 
+type CustomerSummaryHistory = {
+  id: string;
+  summaryId: string;
+  name: string | null;
+  mobile: string | null;
+  email: string | null;
+  importantKey: string | null;
+  editedBy: string;
+  editedAt: string;
+  editor?: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+};
+
 export default function NotesPanel({ conversationId }: { conversationId: string }) {
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
@@ -81,6 +97,9 @@ export default function NotesPanel({ conversationId }: { conversationId: string 
     importantKey: '',
   });
   const [savingSummary, setSavingSummary] = useState(false);
+  const [focusNoteId, setFocusNoteId] = useState<string | null>(null);
+  const [viewingSummaryHistory, setViewingSummaryHistory] = useState(false);
+  const [summaryHistory, setSummaryHistory] = useState<CustomerSummaryHistory[]>([]);
 
   useEffect(() => {
     loadNotes();
@@ -200,7 +219,8 @@ export default function NotesPanel({ conversationId }: { conversationId: string 
       setEditingNote(null);
       setEditContent('');
       setEditTags([]);
-      loadNotes();
+      setFocusNoteId(noteId);
+      await loadNotes();
     } catch (error) {
       console.error('Failed to update note:', error);
       alert('Failed to update note');
@@ -246,6 +266,22 @@ export default function NotesPanel({ conversationId }: { conversationId: string 
     } catch (error) {
       console.error('Failed to load history:', error);
       alert('Failed to load note history');
+    }
+  };
+
+  const loadSummaryHistory = async () => {
+    if (!token || !conversationId) return;
+
+    try {
+      const data = await apiFetch(
+        `/api/customer-summaries/conversation/${conversationId}/history`,
+        token
+      );
+      setSummaryHistory(data);
+      setViewingSummaryHistory(true);
+    } catch (error) {
+      console.error('Failed to load customer summary history:', error);
+      alert('Failed to load customer summary history');
     }
   };
 
@@ -311,12 +347,42 @@ export default function NotesPanel({ conversationId }: { conversationId: string 
       setSummaryForm={setSummaryForm}
       handleSaveSummary={handleSaveSummary}
       savingSummary={savingSummary}
+      focusNoteId={focusNoteId}
+      setFocusNoteId={setFocusNoteId}
+      loadSummaryHistory={loadSummaryHistory}
+      viewingSummaryHistory={viewingSummaryHistory}
+      setViewingSummaryHistory={setViewingSummaryHistory}
+      summaryHistory={summaryHistory}
     />
   );
 }
 
 // Internal Notes Component with Customer Summary
-function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, newNoteTags, setNewNoteTags, customTag, setCustomTag, showAddForm, setShowAddForm, editingNote, setEditingNote, editContent, setEditContent, editTags, setEditTags, viewingHistory, setViewingHistory, noteHistory, handleCreateNote, handleUpdateNote, handleDeleteNote, handleTogglePin, loadNoteHistory, getNoteIcon, getNoteColor, user, summary, summaryForm, setSummaryForm, handleSaveSummary, savingSummary }: any) {
+function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, newNoteTags, setNewNoteTags, customTag, setCustomTag, showAddForm, setShowAddForm, editingNote, setEditingNote, editContent, setEditContent, editTags, setEditTags, viewingHistory, setViewingHistory, noteHistory, handleCreateNote, handleUpdateNote, handleDeleteNote, handleTogglePin, loadNoteHistory, getNoteIcon, getNoteColor, user, summary, summaryForm, setSummaryForm, handleSaveSummary, savingSummary, focusNoteId, setFocusNoteId, loadSummaryHistory, viewingSummaryHistory, setViewingSummaryHistory, summaryHistory }: any) {
+  const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false);
+  const noteRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const scrollToNote = (noteId: string, block: ScrollLogicalPosition = 'center') => {
+    const noteElement = noteRefs.current[noteId];
+    if (!noteElement) return;
+    noteElement.scrollIntoView({ behavior: 'smooth', block });
+  };
+
+  useEffect(() => {
+    if (!editingNote?.id) return;
+    requestAnimationFrame(() => {
+      scrollToNote(editingNote.id, 'center');
+    });
+  }, [editingNote?.id]);
+
+  useEffect(() => {
+    if (!focusNoteId) return;
+    requestAnimationFrame(() => {
+      scrollToNote(focusNoteId, 'center');
+      setFocusNoteId(null);
+    });
+  }, [focusNoteId, notes, setFocusNoteId]);
+
   return (
     <div className="relative z-40 flex flex-col h-full bg-white">
       {/* Header */}
@@ -333,44 +399,91 @@ function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, newNo
       <div className="flex-1 overflow-y-auto">
         {/* Customer Summary Section */}
         {summary && (
-          <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-b-2 border-blue-200">
-            <div className="flex items-center justify-between mb-3">
+          <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-50 to-cyan-50 border-b-2 border-blue-200 shadow-sm">
+            <div className="px-4 pt-4 pb-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
                 <h3 className="text-base font-bold text-gray-900">Customer Summary</h3>
               </div>
-            </div>
-            <div className="bg-white rounded-lg p-3 space-y-2 shadow-sm">
-              {summary.name && (
-                <div className="flex items-start gap-2">
-                  <span className="text-sm font-bold text-gray-700 min-w-[80px]">Name:</span>
-                  <span className="text-sm text-gray-900 font-medium">{summary.name}</span>
-                </div>
-              )}
-              {summary.mobile && (
-                <div className="flex items-start gap-2">
-                  <span className="text-sm font-bold text-gray-700 min-w-[80px]">Mobile:</span>
-                  <span className="text-sm text-gray-900 font-medium">{summary.mobile}</span>
-                </div>
-              )}
-              {summary.email && (
-                <div className="flex items-start gap-2">
-                  <span className="text-sm font-bold text-gray-700 min-w-[80px]">Email:</span>
-                  <span className="text-sm text-gray-900 font-medium">{summary.email}</span>
-                </div>
-              )}
-              {summary.importantKey && (
-                <div className="flex items-start gap-2">
-                  <span className="text-sm font-bold text-gray-700 min-w-[80px]">Important:</span>
-                  <span className="text-sm text-gray-900 font-medium whitespace-pre-wrap">{summary.importantKey}</span>
-                </div>
-              )}
-              <div className="text-xs text-gray-500 pt-2 border-t border-gray-200">
-                Updated: {new Date(summary.updatedAt).toLocaleString()}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSummaryCollapsed((prev: boolean) => !prev)}
+                  className="flex items-center gap-1 text-xs font-semibold text-blue-700"
+                  title={isSummaryCollapsed ? 'Expand customer summary' : 'Collapse customer summary'}
+                >
+                  {isSummaryCollapsed ? 'Expand' : 'Collapse'}
+                  <svg className={`w-4 h-4 transition-transform ${isSummaryCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
               </div>
             </div>
+            {!isSummaryCollapsed ? (
+              <div className="px-4 pb-4">
+                <div className="bg-white rounded-lg p-3 space-y-2 shadow-sm">
+                  {summary.name && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-sm font-bold text-gray-700 min-w-[80px]">Name:</span>
+                      <span className="text-sm text-gray-900 font-medium">{summary.name}</span>
+                    </div>
+                  )}
+                  {summary.mobile && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-sm font-bold text-gray-700 min-w-[80px]">Mobile:</span>
+                      <span className="text-sm text-gray-900 font-medium">{summary.mobile}</span>
+                    </div>
+                  )}
+                  {summary.email && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-sm font-bold text-gray-700 min-w-[80px]">Email:</span>
+                      <span className="text-sm text-gray-900 font-medium">{summary.email}</span>
+                    </div>
+                  )}
+                  {summary.importantKey && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-sm font-bold text-gray-700 min-w-[80px]">Important:</span>
+                      <span className="text-sm text-gray-900 font-medium whitespace-pre-wrap">{summary.importantKey}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                    <div className="text-xs text-gray-500">
+                      Updated: {new Date(summary.updatedAt).toLocaleString()}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={loadSummaryHistory}
+                      className="text-xs px-3 py-1.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold rounded-full hover:from-purple-600 hover:to-indigo-600 transition-all shadow-md hover:shadow-lg flex items-center gap-1"
+                      title="View customer summary history"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      History
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="px-4 pb-3 flex items-center justify-between">
+                <div className="text-xs text-gray-500">
+                  Updated: {new Date(summary.updatedAt).toLocaleString()}
+                </div>
+                <button
+                  type="button"
+                  onClick={loadSummaryHistory}
+                  className="text-xs px-3 py-1.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold rounded-full hover:from-purple-600 hover:to-indigo-600 transition-all shadow-md hover:shadow-lg flex items-center gap-1"
+                  title="View customer summary history"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  History
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -398,6 +511,9 @@ function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, newNo
               notes.map((note: Note) => (
             <div
               key={note.id}
+              ref={(element) => {
+                noteRefs.current[note.id] = element;
+              }}
               className={`relative border-2 rounded-xl p-4 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] transform ${
                 note.isPinned 
                   ? 'bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-300 shadow-md' 
@@ -490,6 +606,7 @@ function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, newNo
                       <button
                         onClick={() => {
                           setEditingNote(note);
+                          setFocusNoteId(note.id);
                           setEditContent(note.content);
                           setEditTags(note.tags || []);
                         }}
@@ -777,6 +894,109 @@ function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, newNo
                             <div className="flex items-center justify-between">
                               <span className="text-xs px-3 py-1 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-full font-medium shadow-sm">
                                 {history.type}
+                              </span>
+                              {history.editor && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500">Edited by</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 text-white flex items-center justify-center text-[10px] font-bold shadow-sm">
+                                      {(history.editor.name || history.editor.email).charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="text-xs font-semibold text-blue-700">
+                                      {history.editor.name || history.editor.email}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Summary History Modal */}
+      {viewingSummaryHistory && (
+        <div
+          className="fixed inset-0 bg-gray-900 bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn"
+          onClick={() => setViewingSummaryHistory(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full mx-4 max-h-[85vh] overflow-hidden animate-slideUp"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-white">Customer Summary History</h3>
+              </div>
+              <button
+                onClick={() => setViewingSummaryHistory(false)}
+                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-all"
+              >
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto max-h-[calc(85vh-100px)] bg-gradient-to-b from-gray-50 to-white">
+              {summaryHistory.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-500 font-medium">No customer summary history yet</p>
+                  <p className="text-sm text-gray-400 mt-1">Changes will appear here after summary updates</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {summaryHistory.map((history: CustomerSummaryHistory, index: number) => (
+                    <div key={history.id} className="relative">
+                      {index !== summaryHistory.length - 1 && (
+                        <div className="absolute left-6 top-16 bottom-0 w-0.5 bg-gradient-to-b from-purple-300 to-transparent"></div>
+                      )}
+                      <div className="border-2 border-purple-200 rounded-xl p-4 bg-white shadow-md hover:shadow-lg transition-all duration-300">
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold shadow-md">
+                            {index + 1}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-bold text-purple-700 uppercase tracking-wide bg-purple-100 px-3 py-1 rounded-full">
+                                Previous Version
+                              </span>
+                              <span className="text-xs text-gray-500 flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {new Date(history.editedAt).toLocaleString()}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap break-words leading-relaxed mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                              {[
+                                history.name ? `Name: ${history.name}` : '',
+                                history.mobile ? `Mobile: ${history.mobile}` : '',
+                                history.email ? `Email: ${history.email}` : '',
+                                history.importantKey ? `Important: ${history.importantKey}` : '',
+                              ]
+                                .filter(Boolean)
+                                .join('\n')}
+                            </p>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs px-3 py-1 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-full font-medium shadow-sm">
+                                customer-summary
                               </span>
                               {history.editor && (
                                 <div className="flex items-center gap-2">

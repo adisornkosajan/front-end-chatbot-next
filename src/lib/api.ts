@@ -42,8 +42,16 @@ export async function apiFetch(
     }
 
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ message: 'Request failed' }));
-      throw new Error(errorData.message || `API error: ${res.status}`);
+      if (res.status === 502 || res.status === 503 || res.status === 504) {
+        throw new Error(
+          `API gateway error (${res.status}) from ${url}. Check origin server health and Cloudflare upstream settings.`,
+        );
+      }
+
+      const errorData = await res
+        .json()
+        .catch(() => ({ message: `Request failed (${res.status}) at ${url}` }));
+      throw new Error(errorData.message || `API error: ${res.status} at ${url}`);
     }
 
     return res.json();
@@ -51,7 +59,7 @@ export async function apiFetch(
     console.error('API Fetch Error:', error);
     if (error instanceof TypeError) {
       throw new Error(
-        'Network error: unable to reach API. Please verify API URL, HTTPS/CORS, and Cloudflare firewall settings.',
+        `Network error: unable to reach API at ${url}. Verify API URL, HTTPS/CORS, DNS, and Cloudflare firewall/proxy settings.`,
       );
     }
     throw error;
