@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { apiFetch } from '@/lib/api';
 
@@ -10,6 +10,7 @@ interface QuickReply {
   content: string;
   category: string;
   isActive: boolean;
+  isDefault?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,13 +37,22 @@ export default function QuickRepliesPage() {
     if (!token) return;
     try {
       const data = await apiFetch('/api/quick-replies', token);
-      setQuickReplies(data);
+      setQuickReplies(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to load quick replies:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const defaultReplies = useMemo(
+    () => quickReplies.filter((item) => item.isDefault),
+    [quickReplies],
+  );
+  const customReplies = useMemo(
+    () => quickReplies.filter((item) => !item.isDefault),
+    [quickReplies],
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,13 +73,14 @@ export default function QuickRepliesPage() {
       setShowForm(false);
       setEditingId(null);
       setFormData({ shortcut: '', content: '', category: 'general' });
-      loadQuickReplies();
+      await loadQuickReplies();
     } catch (error: any) {
       alert(error.message || 'Failed to save quick reply');
     }
   };
 
   const handleEdit = (qr: QuickReply) => {
+    if (qr.isDefault) return;
     setFormData({
       shortcut: qr.shortcut,
       content: qr.content,
@@ -80,12 +91,14 @@ export default function QuickRepliesPage() {
   };
 
   const handleDelete = async (id: string) => {
+    const target = quickReplies.find((item) => item.id === id);
+    if (target?.isDefault) return;
     if (!confirm('Are you sure you want to delete this quick reply?')) return;
     if (!token) return;
 
     try {
       await apiFetch(`/api/quick-replies/${id}`, token, { method: 'DELETE' });
-      loadQuickReplies();
+      await loadQuickReplies();
     } catch (error: any) {
       alert(error.message || 'Failed to delete quick reply');
     }
@@ -107,7 +120,6 @@ export default function QuickRepliesPage() {
 
   return (
     <div className="h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4 sm:p-6 lg:p-8 overflow-auto relative">
-      {/* Animated Background Blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
         <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
@@ -115,13 +127,11 @@ export default function QuickRepliesPage() {
       </div>
 
       <div className="max-w-6xl mx-auto relative z-10">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">Quick Replies</h1>
           <p className="text-gray-600">Manage your saved message templates for faster responses</p>
         </div>
 
-        {/* Add Button */}
         <div className="mb-6">
           <button
             onClick={() => setShowForm(true)}
@@ -134,7 +144,6 @@ export default function QuickRepliesPage() {
           </button>
         </div>
 
-        {/* Form */}
         {showForm && (
           <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-6 mb-6 border-2 border-white/40">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
@@ -172,12 +181,7 @@ export default function QuickRepliesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Message Content
-                  <span className="text-gray-600 font-normal ml-2">
-                    (Use {'{customer_name}'} or {'{agent_name}'})
-                  </span>
-                </label>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">Message Content</label>
                 <textarea
                   value={formData.content}
                   onChange={(e) => setFormData({ ...formData, content: e.target.value })}
@@ -207,46 +211,64 @@ export default function QuickRepliesPage() {
           </div>
         )}
 
-        {/* Quick Replies List */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {quickReplies.map((qr) => (
-            <div
-              key={qr.id}
-              className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-200 p-5 border-2 border-white/40 hover:border-blue-300 transform hover:scale-105"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
+        {defaultReplies.length > 0 && (
+          <>
+            <div className="mb-3 mt-2">
+              <h3 className="text-lg font-bold text-gray-900">Default</h3>
+              <p className="text-sm text-gray-600">System-provided templates</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+              {defaultReplies.map((qr) => (
+                <div
+                  key={qr.id}
+                  className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-5 border-2 border-indigo-200/70"
+                >
                   <div className="flex items-center gap-2 mb-2">
                     <code className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-mono font-semibold">
                       {qr.shortcut}
                     </code>
-                    <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-medium">
-                      {qr.category}
+                    <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-medium">
+                      default
                     </span>
                   </div>
-                  <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap break-words">
-                    {qr.content}
-                  </p>
+                  <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap break-words">{qr.content}</p>
                 </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        <div className="mb-3 mt-2">
+          <h3 className="text-lg font-bold text-gray-900">Custom</h3>
+          <p className="text-sm text-gray-600">Created by your team</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {customReplies.map((qr) => (
+            <div
+              key={qr.id}
+              className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-200 p-5 border-2 border-white/40 hover:border-blue-300 transform hover:scale-105"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <code className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-mono font-semibold">
+                  {qr.shortcut}
+                </code>
+                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-medium">
+                  {qr.category}
+                </span>
               </div>
+              <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap break-words">{qr.content}</p>
 
               <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
                 <button
                   onClick={() => handleEdit(qr)}
                   className="flex-1 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-1"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
                   Edit
                 </button>
                 <button
                   onClick={() => handleDelete(qr.id)}
                   className="flex-1 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-1"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
                   Delete
                 </button>
               </div>
@@ -254,19 +276,16 @@ export default function QuickRepliesPage() {
           ))}
         </div>
 
-        {quickReplies.length === 0 && !showForm && (
+        {customReplies.length === 0 && !showForm && (
           <div className="text-center py-16">
-            <div className="text-6xl mb-4">💬</div>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">No Quick Replies Yet</h3>
-            <p className="text-gray-500 mb-6">Create your first quick reply to speed up your responses</p>
+            <div className="text-6xl mb-4">QR</div>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">No Custom Quick Replies Yet</h3>
+            <p className="text-gray-500 mb-6">Create your own quick reply templates for your team</p>
             <button
               onClick={() => setShowForm(true)}
               className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 inline-flex items-center gap-2"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Create Quick Reply
+              Create Custom Quick Reply
             </button>
           </div>
         )}

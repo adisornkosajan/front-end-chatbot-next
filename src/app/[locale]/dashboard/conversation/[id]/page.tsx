@@ -48,6 +48,7 @@ export default function ConversationPage() {
   const setMessages = useChatStore((s) => s.setMessages);
   const addMessage = useChatStore((s) => s.addMessage);
   const conversations = useChatStore((s) => s.conversations);
+  const setConversations = useChatStore((s) => s.setConversations);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [orgUsers, setOrgUsers] = useState<User[]>([]);
@@ -59,6 +60,7 @@ export default function ConversationPage() {
   const [qrAmount, setQRAmount] = useState<number | undefined>(undefined);
   const [aiSummary, setAiSummary] = useState<CustomerSummary | null>(null);
   const [generatingSummary, setGeneratingSummary] = useState(false);
+  const [showAiSummaryPanel, setShowAiSummaryPanel] = useState(false);
 
   // Get conversation at the top level (before any conditional returns)
   const conversation = conversations.find((c) => c.id === id);
@@ -86,6 +88,16 @@ export default function ConversationPage() {
       if (Number.isFinite(ts)) return formatMessageTime(value);
     }
     return '';
+  };
+
+  const parseAiInsight = (raw: string) => {
+    const summaryMatch = raw.match(/summary:\s*(.*?)(?:\n|$)/i);
+    const nextActionMatch = raw.match(/next best action:\s*(.*?)(?:\n|$)/i);
+    return {
+      summary: summaryMatch?.[1]?.trim() || '',
+      nextAction: nextActionMatch?.[1]?.trim() || '',
+      raw: raw.trim(),
+    };
   };
 
   const isLikelyDuplicateAgentMessage = (prev: ChatMessage, current: ChatMessage): boolean => {
@@ -336,6 +348,9 @@ export default function ConversationPage() {
         if (payload.conversationId === id) {
           console.log('✅ Message belongs to current conversation, adding to list');
           addMessage(payload.message);
+          apiFetch(API_CONFIG.ENDPOINTS.CONVERSATIONS.LIST, token)
+            .then((convs) => setConversations(convs))
+            .catch(() => undefined);
           
           // Auto-scroll to bottom
           setTimeout(() => {
@@ -394,7 +409,7 @@ export default function ConversationPage() {
         cleanupFn();
       }
     };
-  }, [id, addMessage, token]);
+  }, [id, addMessage, token, setConversations]);
 
   if (loading) {
     return (
@@ -461,11 +476,10 @@ export default function ConversationPage() {
               {/* Right side controls */}
               <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                 <button
-                  onClick={handleGenerateSummary}
-                  disabled={generatingSummary}
+                  onClick={() => setShowAiSummaryPanel((v) => !v)}
                   className="px-3 sm:px-4 py-2 rounded-lg font-semibold transition-all shadow-md bg-white text-indigo-700 border-2 border-indigo-200 hover:bg-indigo-50 disabled:opacity-50 text-sm sm:text-base"
                 >
-                  {generatingSummary ? 'Generating...' : 'AI Summary'}
+                  AI Summary
                 </button>
 
                 {/* Notes Toggle Button */}
@@ -502,16 +516,6 @@ export default function ConversationPage() {
 
         {/* Messages */}
         <div className="relative z-10 flex-1 overflow-y-auto p-3 sm:p-6 messages-container backdrop-blur-sm" style={{ display: 'flex', flexDirection: 'column' }}>
-          {aiSummary?.importantKey && (
-            <div className="mb-4 bg-white/95 border border-indigo-200 rounded-xl p-4 shadow-sm">
-              <p className="text-xs font-bold text-indigo-700 uppercase tracking-wide mb-2">AI Insight</p>
-              <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">{aiSummary.importantKey}</pre>
-              <p className="text-xs text-gray-500 mt-2">
-                Updated: {new Date(aiSummary.updatedAt).toLocaleString()}
-              </p>
-            </div>
-          )}
-
           {visibleMessages.length === 0 ? (
             <div className="flex items-center justify-center" style={{ flex: 1 }}>
               <div className="text-center">
@@ -650,6 +654,125 @@ export default function ConversationPage() {
               </div>
               <div className="flex-1 overflow-hidden">
                 <NotesPanel conversationId={id as string} />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* AI Summary Panel (Right Sidebar - Desktop) / Modal (Mobile) */}
+      {showAiSummaryPanel && (
+        <>
+          <div className="hidden lg:block relative z-30 w-[420px] border-l-2 border-indigo-100 shadow-xl bg-white">
+            <div className="h-full flex flex-col">
+              <div className="p-4 border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-blue-50">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-gray-900">AI Summary</h3>
+                  <button
+                    onClick={() => setShowAiSummaryPanel(false)}
+                    className="text-gray-400 hover:text-gray-700 p-1"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div className="p-4 overflow-y-auto space-y-4">
+                <button
+                  onClick={handleGenerateSummary}
+                  disabled={generatingSummary}
+                  className="w-full px-4 py-2.5 rounded-lg font-semibold transition-all shadow-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50"
+                >
+                  {generatingSummary ? 'Generating...' : 'Regenerate Summary'}
+                </button>
+                {aiSummary?.importantKey ? (
+                  (() => {
+                    const parsed = parseAiInsight(aiSummary.importantKey);
+                    return (
+                      <div className="bg-white border border-indigo-100 rounded-xl p-4 shadow-sm">
+                        {parsed.summary && (
+                          <div className="mb-4">
+                            <p className="text-xs font-bold text-indigo-700 uppercase tracking-wide mb-1">Summary</p>
+                            <p className="text-sm text-gray-800 leading-relaxed">{parsed.summary}</p>
+                          </div>
+                        )}
+                        {parsed.nextAction && (
+                          <div className="mb-4">
+                            <p className="text-xs font-bold text-indigo-700 uppercase tracking-wide mb-1">Next Best Action</p>
+                            <p className="text-sm text-gray-800 leading-relaxed">{parsed.nextAction}</p>
+                          </div>
+                        )}
+                        {!parsed.summary && !parsed.nextAction && (
+                          <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">{parsed.raw}</pre>
+                        )}
+                        <p className="text-xs text-gray-500 mt-3">
+                          Updated: {new Date(aiSummary.updatedAt).toLocaleString()}
+                        </p>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-xl p-4">
+                    No summary yet. Click "Regenerate Summary" to create one.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center">
+            <div className="bg-white w-full sm:max-w-lg sm:rounded-t-3xl rounded-t-3xl max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between p-4 border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-blue-50">
+                <h3 className="text-lg font-bold text-gray-900">AI Summary</h3>
+                <button
+                  onClick={() => setShowAiSummaryPanel(false)}
+                  className="text-gray-400 hover:text-gray-700 p-1"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto space-y-4">
+                <button
+                  onClick={handleGenerateSummary}
+                  disabled={generatingSummary}
+                  className="w-full px-4 py-2.5 rounded-lg font-semibold transition-all shadow-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50"
+                >
+                  {generatingSummary ? 'Generating...' : 'Regenerate Summary'}
+                </button>
+                {aiSummary?.importantKey ? (
+                  (() => {
+                    const parsed = parseAiInsight(aiSummary.importantKey);
+                    return (
+                      <div className="bg-white border border-indigo-100 rounded-xl p-4 shadow-sm">
+                        {parsed.summary && (
+                          <div className="mb-4">
+                            <p className="text-xs font-bold text-indigo-700 uppercase tracking-wide mb-1">Summary</p>
+                            <p className="text-sm text-gray-800 leading-relaxed">{parsed.summary}</p>
+                          </div>
+                        )}
+                        {parsed.nextAction && (
+                          <div className="mb-4">
+                            <p className="text-xs font-bold text-indigo-700 uppercase tracking-wide mb-1">Next Best Action</p>
+                            <p className="text-sm text-gray-800 leading-relaxed">{parsed.nextAction}</p>
+                          </div>
+                        )}
+                        {!parsed.summary && !parsed.nextAction && (
+                          <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">{parsed.raw}</pre>
+                        )}
+                        <p className="text-xs text-gray-500 mt-3">
+                          Updated: {new Date(aiSummary.updatedAt).toLocaleString()}
+                        </p>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-xl p-4">
+                    No summary yet. Click "Regenerate Summary" to create one.
+                  </div>
+                )}
               </div>
             </div>
           </div>

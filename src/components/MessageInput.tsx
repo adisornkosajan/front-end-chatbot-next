@@ -11,6 +11,7 @@ interface QuickReply {
   shortcut: string;
   content: string;
   category: string;
+  isDefault?: boolean;
 }
 
 export default function MessageInput({
@@ -275,7 +276,7 @@ export default function MessageInput({
                           {qr.shortcut}
                         </code>
                         <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
-                          {qr.category}
+                          {qr.isDefault ? 'default' : qr.category}
                         </span>
                       </div>
                       <p className="text-sm text-gray-700 line-clamp-2">{qr.content}</p>
