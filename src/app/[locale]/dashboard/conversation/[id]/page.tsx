@@ -64,6 +64,9 @@ export default function ConversationPage() {
 
   // Get conversation at the top level (before any conditional returns)
   const conversation = conversations.find((c) => c.id === id);
+  
+  // API Base URL for resolving relative image paths
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
   const formatMessageTime = (date: string) => {
     const d = new Date(date);
@@ -139,7 +142,11 @@ export default function ConversationPage() {
 
   const getMediaUrl = (m: any): string | null => {
     if (!m?.imageUrl || typeof m.imageUrl !== 'string') return null;
-    return m.imageUrl;
+    const url = m.imageUrl;
+    // If it's already a full URL or data URL, return as-is
+    if (url.startsWith('http') || url.startsWith('data:')) return url;
+    // If it's a relative path, prepend the API base URL
+    return `${API_BASE}${url}`;
   };
 
   const isVideoMessage = (m: any): boolean => {
@@ -561,30 +568,29 @@ export default function ConversationPage() {
                         {/* Show media attachment if exists */}
                         {getMediaUrl(m) && (
                           isVideoMessage(m) ? (
-                            <div className="mb-3">
+                            <div className="mb-2">
                               <video
                                 controls
                                 preload="metadata"
-                                className="max-w-full rounded-xl shadow-lg"
-                                style={{ maxHeight: '400px' }}
+                                className="rounded-lg shadow-md"
+                                style={{ maxHeight: '200px', maxWidth: '300px' }}
                                 src={getMediaUrl(m) as string}
                               />
                             </div>
                           ) : (
-                            <div className="mb-3 group cursor-pointer" onClick={() => window.open(getMediaUrl(m) as string, '_blank')}>
-                              <div className="relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300">
+                            <div className="mb-2 group cursor-pointer" onClick={() => window.open(getMediaUrl(m) as string, '_blank')}>
+                              <div className="relative overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
                                 <img
                                   src={getMediaUrl(m) as string}
                                   alt="Message attachment"
-                                  className="max-w-full transform group-hover:scale-105 transition-transform duration-500"
-                                  style={{ maxHeight: '400px' }}
+                                  className="rounded-lg transform group-hover:scale-105 transition-transform duration-300"
+                                  style={{ maxHeight: '200px', maxWidth: '300px', objectFit: 'cover' }}
                                 />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                  <div className="absolute bottom-3 right-3 flex items-center gap-2 text-white text-sm font-semibold bg-black/50 backdrop-blur-sm px-3 py-1.5 rounded-lg">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-200 rounded-lg flex items-center justify-center">
+                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md">
+                                    <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                     </svg>
-                                    <span>View full size</span>
                                   </div>
                                 </div>
                               </div>

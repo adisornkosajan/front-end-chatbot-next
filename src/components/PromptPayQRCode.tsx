@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getApiUrl } from '@/lib/config';
 
 interface PromptPayQRCodeProps {
   phoneNumber: string;
@@ -29,7 +30,7 @@ export default function PromptPayQRCode({ phoneNumber, amount, onClose }: Prompt
       }
 
       const response = await fetch(
-        `http://localhost:3001/api/plugins/qrcode/generate?${params}`,
+        getApiUrl(`/api/plugins/qrcode/generate?${params}`),
         {
           headers: {
             Authorization: `Bearer ${token}`,

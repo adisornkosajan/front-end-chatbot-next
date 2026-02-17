@@ -1,35 +1,20 @@
-const RAW_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-const RAW_WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001';
+const RAW_API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.nighttime77.win';
+const RAW_WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'https://api.nighttime77.win';
+
+// Debug: Check if env vars are loaded
+console.log('🔧 Environment Check:', {
+  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+  NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
+  RAW_API_URL,
+  RAW_WS_URL,
+});
 
 function normalizeBaseUrl(rawUrl: string): string {
-  const trimmed = rawUrl.trim().replace(/\/+$/, '');
-  if (typeof window === 'undefined') {
-    return trimmed;
-  }
-
-  // Prevent mixed-content requests on HTTPS pages.
-  if (window.location.protocol === 'https:' && trimmed.startsWith('http://')) {
-    return `https://${trimmed.slice('http://'.length)}`;
-  }
-
-  return trimmed;
+  return rawUrl.trim().replace(/\/+$/, '');
 }
 
 function normalizeWsUrl(rawUrl: string): string {
-  const trimmed = rawUrl.trim().replace(/\/+$/, '');
-  if (typeof window === 'undefined') {
-    return trimmed;
-  }
-
-  if (window.location.protocol === 'https:' && trimmed.startsWith('ws://')) {
-    return `wss://${trimmed.slice('ws://'.length)}`;
-  }
-
-  if (window.location.protocol === 'https:' && trimmed.startsWith('http://')) {
-    return `https://${trimmed.slice('http://'.length)}`;
-  }
-
-  return trimmed;
+  return rawUrl.trim().replace(/\/+$/, '');
 }
 
 export const API_CONFIG = {
@@ -74,6 +59,30 @@ export const API_CONFIG = {
       CREATE: '/api/notes',
       UPDATE: '/api/notes',
       DELETE: '/api/notes',
+    },
+    CONTACTS: {
+      LIST: '/api/contacts',
+      DETAIL: (id: string) => `/api/contacts/${id}`,
+      TAGS: '/api/contacts/tags',
+      ADD_TAG: (id: string, tagId: string) => `/api/contacts/${id}/tags/${tagId}`,
+    },
+    BROADCASTS: {
+      LIST: '/api/broadcasts',
+      CREATE: '/api/broadcasts',
+      DETAIL: (id: string) => `/api/broadcasts/${id}`,
+      SEND: (id: string) => `/api/broadcasts/${id}/send`,
+    },
+    CHATBOT_FLOWS: {
+      LIST: '/api/chatbot-flows',
+      CREATE: '/api/chatbot-flows',
+      DETAIL: (id: string) => `/api/chatbot-flows/${id}`,
+      TOGGLE: (id: string) => `/api/chatbot-flows/${id}/toggle`,
+    },
+    AUTO_ASSIGN_RULES: {
+      LIST: '/api/auto-assign-rules',
+      CREATE: '/api/auto-assign-rules',
+      DETAIL: (id: string) => `/api/auto-assign-rules/${id}`,
+      TOGGLE: (id: string) => `/api/auto-assign-rules/${id}/toggle`,
     },
   },
 };
