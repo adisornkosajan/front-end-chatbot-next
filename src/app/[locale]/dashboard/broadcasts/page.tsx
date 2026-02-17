@@ -38,6 +38,7 @@ export default function BroadcastsPage() {
     platformType: '',
     filterTags: [] as string[],
     scheduledAt: '',
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Bangkok',
   });
 
   useEffect(() => { loadBroadcasts(); loadTags(); }, [token]);
@@ -72,10 +73,13 @@ export default function BroadcastsPage() {
       const body: any = { name: formData.name, message: formData.message };
       if (formData.platformType) body.platformType = formData.platformType;
       if (formData.filterTags.length) body.filterTags = formData.filterTags;
-      if (formData.scheduledAt) body.scheduledAt = formData.scheduledAt;
+      if (formData.scheduledAt) {
+        body.scheduledAt = formData.scheduledAt;
+        body.timeZone = formData.timeZone;
+      }
       await apiFetch('/api/broadcasts', token, { method: 'POST', body: JSON.stringify(body) });
       setShowForm(false);
-      setFormData({ name: '', message: '', platformType: '', filterTags: [], scheduledAt: '' });
+      setFormData({ name: '', message: '', platformType: '', filterTags: [], scheduledAt: '', timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Bangkok' });
       loadBroadcasts();
     } catch (err: any) { alert(err.message); }
   };
@@ -171,7 +175,16 @@ export default function BroadcastsPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Schedule (optional)</label>
-                  <input type="datetime-local" value={formData.scheduledAt} onChange={e => setFormData({ ...formData, scheduledAt: e.target.value })} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="datetime-local" value={formData.scheduledAt} onChange={e => setFormData({ ...formData, scheduledAt: e.target.value })} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none" />
+                    <select value={formData.timeZone} onChange={e => setFormData({ ...formData, timeZone: e.target.value })} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none">
+                      <option value="Asia/Bangkok">Asia/Bangkok (UTC+7)</option>
+                      <option value="UTC">UTC (GMT+0)</option>
+                      {Intl.supportedValuesOf('timeZone').filter(tz => !['Asia/Bangkok', 'UTC'].includes(tz)).map(tz => (
+                        <option key={tz} value={tz}>{tz}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div className="flex gap-3 pt-2">
                   <button type="submit" className="flex-1 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-semibold rounded-xl hover:from-violet-700 hover:to-fuchsia-700 transition-all">Create</button>
