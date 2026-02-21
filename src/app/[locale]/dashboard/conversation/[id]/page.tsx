@@ -183,6 +183,60 @@ export default function ConversationPage() {
     setShowQRCode(true);
   };
 
+  const getConversationSourceLabel = (platform: any) => {
+    const credentials = (platform?.credentials ?? {}) as Record<string, any>;
+    const getFirstText = (...values: any[]) => {
+      for (const value of values) {
+        if (typeof value === 'string' && value.trim()) {
+          return value.trim();
+        }
+      }
+      return '';
+    };
+
+    switch (platform?.type) {
+      case 'facebook':
+        return getFirstText(
+          credentials.pageName,
+          credentials.name,
+          platform?.displayName,
+          platform?.pageId,
+          'Unknown Page',
+        );
+      case 'instagram': {
+        const username = getFirstText(credentials.username);
+        if (username) return username.startsWith('@') ? username : `@${username}`;
+        return getFirstText(
+          credentials.name,
+          platform?.displayName,
+          platform?.pageId,
+          'Unknown IG',
+        );
+      }
+      case 'whatsapp':
+        return getFirstText(
+          credentials.displayName,
+          credentials.verifiedName,
+          credentials.displayPhoneNumber,
+          credentials.phoneNumber,
+          platform?.displayName,
+          platform?.pageId,
+          'Unknown Number',
+        );
+      default:
+        return getFirstText(
+          platform?.displayName,
+          platform?.pageId,
+          'Unknown Source',
+        );
+    }
+  };
+
+  const conversationSourceLabel = conversation
+    ? getConversationSourceLabel(conversation.platform)
+    : '';
+  const conversationSourceId = conversation?.platform?.pageId;
+
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     const messagesContainer = document.querySelector('.messages-container');
@@ -467,6 +521,17 @@ export default function ConversationPage() {
                     <span className="text-xs font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
                       {conversation.platform.type.toUpperCase()}
                     </span>
+                    <span
+                      className="text-xs font-semibold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-white text-gray-700 border border-gray-200 max-w-[200px] truncate"
+                      title={conversationSourceLabel}
+                    >
+                      {conversationSourceLabel}
+                    </span>
+                    {conversationSourceId && (
+                      <span className="text-[11px] text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded">
+                        ID: {conversationSourceId}
+                      </span>
+                    )}
                     {conversation.requestHuman && (
                       <button
                         onClick={handleResumeAI}

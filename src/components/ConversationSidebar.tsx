@@ -58,6 +58,55 @@ export default function ConversationSidebar() {
     }
   };
 
+  const getPlatformSourceLabel = (platform: any) => {
+    const credentials = (platform?.credentials ?? {}) as Record<string, any>;
+    const getFirstText = (...values: any[]) => {
+      for (const value of values) {
+        if (typeof value === 'string' && value.trim()) {
+          return value.trim();
+        }
+      }
+      return '';
+    };
+
+    switch (platform?.type) {
+      case 'facebook':
+        return getFirstText(
+          credentials.pageName,
+          credentials.name,
+          platform?.displayName,
+          platform?.pageId,
+          'Unknown Page',
+        );
+      case 'instagram': {
+        const username = getFirstText(credentials.username);
+        if (username) return username.startsWith('@') ? username : `@${username}`;
+        return getFirstText(
+          credentials.name,
+          platform?.displayName,
+          platform?.pageId,
+          'Unknown IG',
+        );
+      }
+      case 'whatsapp':
+        return getFirstText(
+          credentials.displayName,
+          credentials.verifiedName,
+          credentials.displayPhoneNumber,
+          credentials.phoneNumber,
+          platform?.displayName,
+          platform?.pageId,
+          'Unknown Number',
+        );
+      default:
+        return getFirstText(
+          platform?.displayName,
+          platform?.pageId,
+          'Unknown Source',
+        );
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'OPEN':
@@ -89,6 +138,7 @@ export default function ConversationSidebar() {
     <div className="space-y-2 p-2">
       {conversations.map((c) => {
         const isActive = pathname?.includes(c.id);
+        const sourceLabel = getPlatformSourceLabel(c.platform);
         return (
           <Link
             key={c.id}
@@ -118,9 +168,15 @@ export default function ConversationSidebar() {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-full bg-gradient-to-r ${getPlatformColor(c.platform.type)} text-white shadow-sm`}>
                     {c.platform.type.toUpperCase()}
+                  </span>
+                  <span
+                    className="text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200 max-w-[180px] truncate"
+                    title={sourceLabel}
+                  >
+                    {sourceLabel}
                   </span>
                   {getStatusBadge(c.status)}
                   {c.requestHuman && (
@@ -129,11 +185,12 @@ export default function ConversationSidebar() {
                     </span>
                   )}
                 </div>
-                {c.customer?.externalId && getDisplayName(c) !== c.customer.externalId && (
-                  <p className="text-xs text-gray-500 truncate font-mono bg-gray-100 px-2 py-0.5 rounded inline-block">
-                    ID: {c.customer.externalId}
-                  </p>
-                )}
+                <p
+                  className="text-xs text-gray-500 truncate bg-gray-100 px-2 py-0.5 rounded inline-block"
+                  title={sourceLabel}
+                >
+                  Page: {sourceLabel}
+                </p>
               </div>
               <div className={`text-gray-400 group-hover:text-blue-500 transition flex-shrink-0 ${
                 isActive ? 'text-blue-600' : ''

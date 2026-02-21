@@ -6,6 +6,79 @@ import { apiFetch } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
+type SocialPlatform = 'facebook' | 'instagram' | 'whatsapp';
+
+type SocialContacts = Record<SocialPlatform, string[]>;
+
+const SOCIAL_PLATFORM_CONFIG: Array<{
+  key: SocialPlatform;
+  label: string;
+  placeholder: string;
+}> = [
+  { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/your-page' },
+  { key: 'instagram', label: 'Instagram', placeholder: '@your.instagram or instagram.com/your.account' },
+  { key: 'whatsapp', label: 'WhatsApp', placeholder: '+66xxxxxxxxx or wa.me/xxxxxxxxx' },
+];
+
+const createEmptySocialContacts = (): SocialContacts => ({
+  facebook: [],
+  instagram: [],
+  whatsapp: [],
+});
+
+const normalizeContactList = (values: unknown): string[] => {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of values) {
+    if (typeof value !== 'string') {
+      continue;
+    }
+
+    const trimmedValue = value.trim();
+    if (!trimmedValue || seen.has(trimmedValue)) {
+      continue;
+    }
+
+    seen.add(trimmedValue);
+    result.push(trimmedValue);
+  }
+
+  return result;
+};
+
+const normalizeSocialContacts = (socialContacts: unknown, legacyContact?: string): SocialContacts => {
+  const normalized: SocialContacts = createEmptySocialContacts();
+
+  if (socialContacts && typeof socialContacts === 'object') {
+    const socialContactsObject = socialContacts as Partial<Record<SocialPlatform, unknown>>;
+    normalized.facebook = normalizeContactList(socialContactsObject.facebook);
+    normalized.instagram = normalizeContactList(socialContactsObject.instagram);
+    normalized.whatsapp = normalizeContactList(socialContactsObject.whatsapp);
+  }
+
+  const hasSocialContact =
+    normalized.facebook.length > 0 ||
+    normalized.instagram.length > 0 ||
+    normalized.whatsapp.length > 0;
+
+  if (!hasSocialContact && legacyContact?.trim()) {
+    normalized.whatsapp = [legacyContact.trim()];
+  }
+
+  return normalized;
+};
+
+const primaryContactFromSocialContacts = (socialContacts: SocialContacts): string =>
+  socialContacts.whatsapp[0] ||
+  socialContacts.facebook[0] ||
+  socialContacts.instagram[0] ||
+  '';
+
 export default function SettingsPage() {
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
@@ -23,6 +96,7 @@ export default function SettingsPage() {
     name: '',
     address: '',
     contact: '',
+    socialContacts: createEmptySocialContacts(),
     trn: '',
   });
   const canEditOrganization = user?.role === 'SUPER_ADMIN';
@@ -61,6 +135,7 @@ export default function SettingsPage() {
           name: org?.name || '',
           address: org?.address || '',
           contact: org?.contact || '',
+          socialContacts: normalizeSocialContacts(org?.socialContacts, org?.contact),
           trn: org?.trn || '',
         });
       } catch (error) {
@@ -150,6 +225,45 @@ export default function SettingsPage() {
     }
   };
 
+  const addSocialContact = (platform: SocialPlatform) => {
+    setOrganizationData((prev) => ({
+      ...prev,
+      socialContacts: {
+        ...prev.socialContacts,
+        [platform]: [...prev.socialContacts[platform], ''],
+      },
+    }));
+  };
+
+  const updateSocialContact = (
+    platform: SocialPlatform,
+    index: number,
+    value: string,
+  ) => {
+    setOrganizationData((prev) => {
+      const nextPlatformContacts = [...prev.socialContacts[platform]];
+      nextPlatformContacts[index] = value;
+
+      return {
+        ...prev,
+        socialContacts: {
+          ...prev.socialContacts,
+          [platform]: nextPlatformContacts,
+        },
+      };
+    });
+  };
+
+  const removeSocialContact = (platform: SocialPlatform, index: number) => {
+    setOrganizationData((prev) => ({
+      ...prev,
+      socialContacts: {
+        ...prev.socialContacts,
+        [platform]: prev.socialContacts[platform].filter((_, currentIndex) => currentIndex !== index),
+      },
+    }));
+  };
+
   const handleOrganizationUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -160,10 +274,22 @@ export default function SettingsPage() {
 
     try {
       setLoading(true);
+
+      const normalizedSocialContacts: SocialContacts = {
+        facebook: normalizeContactList(organizationData.socialContacts.facebook),
+        instagram: normalizeContactList(organizationData.socialContacts.instagram),
+        whatsapp: normalizeContactList(organizationData.socialContacts.whatsapp),
+      };
+
+      const payload = {
+        ...organizationData,
+        socialContacts: normalizedSocialContacts,
+        contact: primaryContactFromSocialContacts(normalizedSocialContacts),
+      };
       
       await apiFetch('/api/organizations/current', token!, {
         method: 'PUT',
-        body: JSON.stringify(organizationData),
+        body: JSON.stringify(payload),
       });
 
       alert('Organization updated successfully!');
@@ -400,21 +526,70 @@ export default function SettingsPage() {
 
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">
-                Contact
+                Social Contacts
               </label>
-              <input
-                type="text"
-                value={organizationData.contact}
-                onChange={(e) => setOrganizationData({ ...organizationData, contact: e.target.value })}
-                readOnly={!canEditOrganization}
-                className={`w-full px-4 py-3 border-2 border-gray-300 rounded-lg outline-none transition font-medium ${
-                  canEditOrganization
-                    ? 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900'
-                    : 'bg-gray-50 text-gray-600 cursor-not-allowed'
-                }`}
-                style={{ fontSize: '15px' }}
-                placeholder="Enter contact information"
-              />
+              <p className="text-xs text-gray-500 mb-3">
+                This section stores profile contact links only. To receive inbox messages, connect channels in
+                Connections.
+              </p>
+              <div className="space-y-4">
+                {SOCIAL_PLATFORM_CONFIG.map((platformConfig) => {
+                  const platform = platformConfig.key;
+                  const contacts = organizationData.socialContacts[platform];
+
+                  return (
+                    <div key={platform} className="rounded-lg border border-gray-200 bg-gray-50/70 p-3 sm:p-4">
+                      <div className="flex items-center justify-between mb-3 gap-2">
+                        <p className="text-sm font-semibold text-gray-800">{platformConfig.label}</p>
+                        {canEditOrganization && (
+                          <button
+                            type="button"
+                            onClick={() => addSocialContact(platform)}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                          >
+                            + Add
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        {contacts.length > 0 ? (
+                          contacts.map((value, index) => (
+                            <div key={`${platform}-${index}`} className="flex items-start gap-2">
+                              <input
+                                type="text"
+                                value={value}
+                                onChange={(e) => updateSocialContact(platform, index, e.target.value)}
+                                readOnly={!canEditOrganization}
+                                className={`w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg outline-none transition font-medium ${
+                                  canEditOrganization
+                                    ? 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900'
+                                    : 'bg-gray-100 text-gray-600 cursor-not-allowed'
+                                }`}
+                                style={{ fontSize: '14px' }}
+                                placeholder={platformConfig.placeholder}
+                              />
+                              {canEditOrganization && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeSocialContact(platform, index)}
+                                  className="px-3 py-2.5 text-xs font-semibold rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-xs text-gray-500">
+                            {canEditOrganization ? 'No entries yet. Click + Add to create one.' : 'No contact set'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             <div>
