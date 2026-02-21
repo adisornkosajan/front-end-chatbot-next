@@ -40,6 +40,66 @@ type ChatMessage = {
   updatedAt?: string;
 };
 
+type ConversationTheme = {
+  pageBackground: string;
+  blobPrimary: string;
+  blobSecondary: string;
+  blobTertiary: string;
+  avatarGradient: string;
+  platformBadge: string;
+  resumeButton: string;
+  outgoingBubble: string;
+  outgoingTime: string;
+  qrButton: string;
+};
+
+const getConversationTheme = (platformType?: string): ConversationTheme => {
+  const normalizedPlatform = (platformType || '').toLowerCase();
+
+  if (normalizedPlatform === 'whatsapp') {
+    return {
+      pageBackground: 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50',
+      blobPrimary: 'bg-green-300',
+      blobSecondary: 'bg-emerald-300',
+      blobTertiary: 'bg-teal-300',
+      avatarGradient: 'from-green-500 to-emerald-600',
+      platformBadge: 'bg-gradient-to-r from-green-500 to-emerald-600',
+      resumeButton: 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700',
+      outgoingBubble: 'bg-gradient-to-r from-green-500 to-emerald-600 text-white backdrop-blur-md',
+      outgoingTime: 'text-green-100',
+      qrButton: 'bg-white text-emerald-700 hover:bg-emerald-50 border-2 border-emerald-200',
+    };
+  }
+
+  if (normalizedPlatform === 'instagram') {
+    return {
+      pageBackground: 'bg-gradient-to-br from-fuchsia-50 via-pink-50 to-rose-50',
+      blobPrimary: 'bg-fuchsia-300',
+      blobSecondary: 'bg-pink-300',
+      blobTertiary: 'bg-rose-300',
+      avatarGradient: 'from-fuchsia-500 to-pink-600',
+      platformBadge: 'bg-gradient-to-r from-fuchsia-500 to-pink-600',
+      resumeButton: 'bg-gradient-to-r from-fuchsia-500 to-pink-600 hover:from-fuchsia-600 hover:to-pink-700',
+      outgoingBubble: 'bg-gradient-to-r from-fuchsia-500 to-pink-600 text-white backdrop-blur-md',
+      outgoingTime: 'text-fuchsia-100',
+      qrButton: 'bg-white text-fuchsia-700 hover:bg-fuchsia-50 border-2 border-fuchsia-200',
+    };
+  }
+
+  return {
+    pageBackground: 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50',
+    blobPrimary: 'bg-purple-300',
+    blobSecondary: 'bg-blue-300',
+    blobTertiary: 'bg-pink-300',
+    avatarGradient: 'from-blue-500 to-indigo-600',
+    platformBadge: 'bg-gradient-to-r from-blue-500 to-indigo-600',
+    resumeButton: 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700',
+    outgoingBubble: 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white backdrop-blur-md',
+    outgoingTime: 'text-blue-100',
+    qrButton: 'bg-white text-blue-600 hover:bg-blue-50 border-2 border-blue-200',
+  };
+};
+
 export default function ConversationPage() {
   const { id } = useParams();
   const token = useAuthStore((s) => s.token);
@@ -236,6 +296,7 @@ export default function ConversationPage() {
     ? getConversationSourceLabel(conversation.platform)
     : '';
   const conversationSourceId = conversation?.platform?.pageId;
+  const conversationTheme = getConversationTheme(conversation?.platform?.type);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -487,7 +548,11 @@ export default function ConversationPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <div className="text-red-500 text-4xl mb-4">❌</div>
+          <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
           <p className="text-red-600 font-medium">{error}</p>
         </div>
       </div>
@@ -495,12 +560,12 @@ export default function ConversationPage() {
   }
 
   return (
-    <div className="flex h-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+    <div className={`flex h-full relative overflow-hidden ${conversationTheme.pageBackground}`}>
       {/* Animated Background */}
       <div className="absolute inset-0 opacity-30">
-        <div className="absolute top-0 -left-4 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl animate-blob"></div>
-        <div className="absolute top-0 -right-4 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-20 w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000"></div>
+        <div className={`absolute top-0 -left-4 w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl animate-blob ${conversationTheme.blobPrimary}`}></div>
+        <div className={`absolute top-0 -right-4 w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000 ${conversationTheme.blobSecondary}`}></div>
+        <div className={`absolute -bottom-8 left-20 w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000 ${conversationTheme.blobTertiary}`}></div>
       </div>
       
       {/* Main Conversation Area */}
@@ -510,7 +575,7 @@ export default function ConversationPage() {
           <div className="relative z-40 bg-white/80 backdrop-blur-xl border-b border-white/20 px-3 sm:px-6 py-3 sm:py-4 shadow-lg">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
               <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg flex-shrink-0">
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg flex-shrink-0 ${conversationTheme.avatarGradient}`}>
                   {conversation.customer?.name?.charAt(0).toUpperCase() || '?'}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -518,7 +583,7 @@ export default function ConversationPage() {
                     {conversation.customer?.name || 'Unknown Customer'}
                   </h2>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className="text-xs font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
+                    <span className={`text-xs font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-white ${conversationTheme.platformBadge}`}>
                       {conversation.platform.type.toUpperCase()}
                     </span>
                     <span
@@ -535,10 +600,13 @@ export default function ConversationPage() {
                     {conversation.requestHuman && (
                       <button
                         onClick={handleResumeAI}
-                        className="text-xs font-semibold px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 transition shadow-md flex items-center gap-1"
+                        className={`text-xs font-semibold px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-white transition shadow-md flex items-center gap-1 ${conversationTheme.resumeButton}`}
                         title="Resume AI auto-reply"
                       >
-                        🤖 <span className="hidden sm:inline">Resume AI</span><span className="sm:hidden">AI</span>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 3a2.25 2.25 0 00-2.25 2.25V7.5h9V5.25A2.25 2.25 0 0014.25 3h-4.5zM6 9.75A2.25 2.25 0 003.75 12v6A2.25 2.25 0 006 20.25h12A2.25 2.25 0 0020.25 18v-6A2.25 2.25 0 0018 9.75H6zm3 3h.008v.008H9v-.008zm6 0h.008v.008H15v-.008zM9 15h6" />
+                        </svg>
+                        <span className="hidden sm:inline">Resume AI</span><span className="sm:hidden">AI</span>
                       </button>
                     )}
                   </div>
@@ -627,7 +695,7 @@ export default function ConversationPage() {
                         className={`max-w-[85%] sm:max-w-[75%] px-3 sm:px-5 py-2 sm:py-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 ${
                           m.senderType === 'customer'
                             ? 'bg-white/90 backdrop-blur-md text-gray-900 border-2 border-white/40'
-                            : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white backdrop-blur-md'
+                            : conversationTheme.outgoingBubble
                         }`}
                       >
                         {/* Show media attachment if exists */}
@@ -674,7 +742,7 @@ export default function ConversationPage() {
                         {m.senderType !== 'customer' && isPaymentMessage(m.content || '') && (
                           <button
                             onClick={() => handleShowQRCode(m.content || '')}
-                            className="mt-3 w-full bg-white text-blue-600 hover:bg-blue-50 font-semibold py-2.5 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 border-2 border-blue-200"
+                            className={`mt-3 w-full font-semibold py-2.5 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 ${conversationTheme.qrButton}`}
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
@@ -684,7 +752,7 @@ export default function ConversationPage() {
                         )}
                         
                         <div className={`text-xs mt-2 ${
-                          m.senderType === 'customer' ? 'text-gray-400' : 'text-blue-100'
+                          m.senderType === 'customer' ? 'text-gray-400' : conversationTheme.outgoingTime
                         }`}>
                           {getMessageTimeLabel(m as ChatMessage)}
                         </div>
@@ -698,7 +766,7 @@ export default function ConversationPage() {
         </div>
 
         {/* Input */}
-        <MessageInput conversationId={id as string} />
+        <MessageInput conversationId={id as string} platformType={conversation?.platform?.type} />
       </div>
 
       {/* Notes Panel (Right Sidebar - Desktop) / Modal (Mobile) */}
