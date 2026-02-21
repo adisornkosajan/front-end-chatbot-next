@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { apiFetch } from '@/lib/api';
+import { useSearchParams } from 'next/navigation';
 
 interface Tag {
   id: string;
@@ -16,6 +17,8 @@ interface Contact {
   name: string | null;
   email: string | null;
   phone: string | null;
+  importantKey?: string | null;
+  importantUpdatedAt?: string | null;
   externalId: string;
   platform: { id: string; type: string; pageId: string };
   tags: Tag[];
@@ -31,6 +34,8 @@ interface ContactsResponse {
 
 export default function ContactsPage() {
   const token = useAuthStore((s) => s.token);
+  const searchParams = useSearchParams();
+  const initializedFromQuery = useRef(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +47,22 @@ export default function ContactsPage() {
   const [showTagForm, setShowTagForm] = useState(false);
   const [newTag, setNewTag] = useState({ name: '', color: '#3B82F6' });
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  const [editingContact, setEditingContact] = useState<{ name: string; email: string; phone: string } | null>(null);
+  const [editingContact, setEditingContact] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+    importantKey: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (initializedFromQuery.current) return;
+    const querySearch = searchParams.get('search');
+    if (querySearch) {
+      setSearch(querySearch);
+      setPage(1);
+    }
+    initializedFromQuery.current = true;
+  }, [searchParams]);
 
   useEffect(() => { loadContacts(); loadTags(); }, [token, page, search, selectedTag]);
 
@@ -193,6 +213,11 @@ export default function ContactsPage() {
                         <div className="font-semibold text-gray-900">{c.name || 'Unknown'}</div>
                         {c.email && <div className="text-sm text-gray-500">{c.email}</div>}
                         {c.phone && <div className="text-sm text-gray-500">{c.phone}</div>}
+                        {c.importantKey && (
+                          <div className="text-sm text-purple-600 mt-1 line-clamp-2">
+                            Important: {c.importantKey}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded-full text-sm font-medium text-gray-700">
@@ -223,7 +248,7 @@ export default function ContactsPage() {
                         <span className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">{c.conversationCount}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <button onClick={() => { setSelectedContact(c); setEditingContact({ name: c.name || '', email: c.email || '', phone: c.phone || '' }); }} className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium transition-all">
+                        <button onClick={() => { setSelectedContact(c); setEditingContact({ name: c.name || '', email: c.email || '', phone: c.phone || '', importantKey: c.importantKey || '' }); }} className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium transition-all">
                           Edit
                         </button>
                       </td>
@@ -261,6 +286,16 @@ export default function ContactsPage() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Phone</label>
                   <input value={editingContact.phone} onChange={e => setEditingContact({ ...editingContact, phone: e.target.value })} className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 text-gray-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Important</label>
+                  <textarea
+                    value={editingContact.importantKey}
+                    onChange={e => setEditingContact({ ...editingContact, importantKey: e.target.value })}
+                    rows={3}
+                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 text-gray-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none"
+                    placeholder="Important customer info"
+                  />
                 </div>
               </div>
               <div className="flex gap-3 mt-6">

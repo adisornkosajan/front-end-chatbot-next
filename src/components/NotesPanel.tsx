@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
+import { usePathname, useRouter } from 'next/navigation';
 
 type Note = {
   id: string;
@@ -46,6 +47,7 @@ type NoteHistory = {
 
 type CustomerSummary = {
   id: string;
+  customerId?: string | null;
   name: string | null;
   mobile: string | null;
   email: string | null;
@@ -73,6 +75,8 @@ type CustomerSummaryHistory = {
 export default function NotesPanel({ conversationId }: { conversationId: string }) {
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
+  const router = useRouter();
+  const pathname = usePathname();
   
   // Notes state
   const [notes, setNotes] = useState<Note[]>([]);
@@ -319,6 +323,19 @@ export default function NotesPanel({ conversationId }: { conversationId: string 
     }
   };
 
+  const openContactFromSummary = () => {
+    if (!summary) return;
+    const keyword = summary.email || summary.mobile || summary.name || '';
+    const segments = pathname?.split('/').filter(Boolean) || [];
+    const locale = segments[0] && /^[a-z]{2}$/i.test(segments[0]) ? segments[0] : 'en';
+    const basePath = `/${locale}/dashboard/contacts`;
+    if (keyword) {
+      router.push(`${basePath}?search=${encodeURIComponent(keyword)}`);
+      return;
+    }
+    router.push(basePath);
+  };
+
   const getNoteIcon = (type: string) => {
     switch (type) {
       case 'important': return '⭐';
@@ -387,12 +404,13 @@ export default function NotesPanel({ conversationId }: { conversationId: string 
       viewingSummaryHistory={viewingSummaryHistory}
       setViewingSummaryHistory={setViewingSummaryHistory}
       summaryHistory={summaryHistory}
+      openContactFromSummary={openContactFromSummary}
     />
   );
 }
 
 // Internal Notes Component with Customer Summary
-function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, newNoteTags, setNewNoteTags, customTag, setCustomTag, showAddForm, setShowAddForm, editingNote, setEditingNote, editContent, setEditContent, editTags, setEditTags, viewingHistory, setViewingHistory, noteHistory, handleCreateNote, handleUpdateNote, handleDeleteNote, handleTogglePin, loadNoteHistory, getNoteIcon, getNoteColor, user, summary, summaryForm, setSummaryForm, handleSaveSummary, savingSummary, focusNoteId, setFocusNoteId, loadSummaryHistory, viewingSummaryHistory, setViewingSummaryHistory, summaryHistory }: any) {
+function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, newNoteTags, setNewNoteTags, customTag, setCustomTag, showAddForm, setShowAddForm, editingNote, setEditingNote, editContent, setEditContent, editTags, setEditTags, viewingHistory, setViewingHistory, noteHistory, handleCreateNote, handleUpdateNote, handleDeleteNote, handleTogglePin, loadNoteHistory, getNoteIcon, getNoteColor, user, summary, summaryForm, setSummaryForm, handleSaveSummary, savingSummary, focusNoteId, setFocusNoteId, loadSummaryHistory, viewingSummaryHistory, setViewingSummaryHistory, summaryHistory, openContactFromSummary }: any) {
   const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false);
   const noteRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const pinnedNotes = notes.filter((note: Note) => note.isPinned);
@@ -488,17 +506,30 @@ function NotesContent({ notes, newNote, setNewNote, noteType, setNoteType, newNo
                     <div className="text-xs text-gray-500">
                       Updated: {new Date(summary.updatedAt).toLocaleString()}
                     </div>
-                    <button
-                      type="button"
-                      onClick={loadSummaryHistory}
-                      className="text-xs px-3 py-1.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold rounded-full hover:from-purple-600 hover:to-indigo-600 transition-all shadow-md hover:shadow-lg flex items-center gap-1"
-                      title="View customer summary history"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      History
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={openContactFromSummary}
+                        className="text-xs px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold rounded-full hover:from-emerald-600 hover:to-cyan-600 transition-all shadow-md hover:shadow-lg flex items-center gap-1"
+                        title="Open matching contact in contacts page"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5V4H2v16h5m10 0v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2m10 0H7m10-10a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        Contact
+                      </button>
+                      <button
+                        type="button"
+                        onClick={loadSummaryHistory}
+                        className="text-xs px-3 py-1.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold rounded-full hover:from-purple-600 hover:to-indigo-600 transition-all shadow-md hover:shadow-lg flex items-center gap-1"
+                        title="View customer summary history"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        History
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
