@@ -1,8 +1,27 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { apiFetch } from "@/lib/api";
+
+interface FlowQuickReplyOption {
+  title: string;
+  payload: string;
+}
+
+interface FlowButtonOption {
+  type: "postback" | "web_url";
+  title: string;
+  payload?: string;
+  url?: string;
+}
+
+interface FlowCarouselCard {
+  title: string;
+  subtitle?: string;
+  imageUrl?: string;
+  buttons?: FlowButtonOption[];
+}
 
 interface FlowNode {
   id: string;
@@ -12,10 +31,16 @@ interface FlowNode {
     | "delay"
     | "action"
     | "collect_input"
-    | "location";
+    | "location"
+    | "quick_replies"
+    | "buttons"
+    | "carousel";
   data: {
     text?: string;
     imageUrl?: string;
+    quickReplies?: FlowQuickReplyOption[];
+    buttons?: FlowButtonOption[];
+    cards?: FlowCarouselCard[];
     variable?: string;
     operator?: string;
     value?: string;
@@ -44,21 +69,58 @@ interface ChatbotFlow {
   createdAt: string;
 }
 
+const inferFlowGroupKey = (flow: ChatbotFlow) => {
+  const desc = (flow.description || "").trim();
+  const descGroup = desc.match(/\bgroup\s*:\s*([a-zA-Z0-9_-]+)/i)?.[1];
+  if (descGroup) return descGroup.toLowerCase();
+
+  const name = (flow.name || "").trim().toLowerCase();
+  if (!name) return "general";
+
+  const parts = name.split("-").filter(Boolean);
+  if (parts.length === 0) return "general";
+  if (parts[0] === "main" && parts[1]) return parts[1];
+
+  return parts[0];
+};
+
+const formatFlowGroupLabel = (groupKey: string) =>
+  groupKey
+    .split(/[-_]/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
 const NODE_TYPES = [
-  { value: "message", label: "💬 Message", desc: "Send a text message" },
+  { value: "message", label: "Message", desc: "Send a text message" },
+  {
+    value: "quick_replies",
+    label: "Quick Replies",
+    desc: "Send selectable reply chips",
+  },
+  {
+    value: "buttons",
+    label: "Buttons",
+    desc: "Send a button template",
+  },
+  {
+    value: "carousel",
+    label: "Carousel",
+    desc: "Send multiple cards with actions",
+  },
   {
     value: "condition",
-    label: "🔀 Condition",
+    label: "Condition",
     desc: "Branch based on condition",
   },
-  { value: "delay", label: "⏱️ Delay", desc: "Wait before next step" },
-  { value: "action", label: "⚡ Action", desc: "Perform an action" },
+  { value: "delay", label: "Delay", desc: "Wait before next step" },
+  { value: "action", label: "Action", desc: "Perform an action" },
   {
     value: "collect_input",
-    label: "📝 Collect Input",
+    label: "Collect Input",
     desc: "Ask user for input",
   },
-  { value: "location", label: "📍 Location", desc: "Send map location" },
+  { value: "location", label: "Location", desc: "Send map location" },
 ];
 
 const ACTIONS = [
@@ -81,6 +143,7 @@ export default function ChatbotFlowsPage() {
     nodes: [] as FlowNode[],
   });
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+  const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   useEffect(() => {
@@ -104,6 +167,29 @@ export default function ChatbotFlowsPage() {
     const id = generateId();
     const node: FlowNode = { id, type, data: {}, nextNodeId: null };
     if (type === "message") node.data.text = "";
+    if (type === "quick_replies") {
+      node.data.text = "Please choose an option:";
+      node.data.quickReplies = [{ title: "Option 1", payload: "OPTION_1" }];
+    }
+    if (type === "buttons") {
+      node.data.text = "Please choose an option:";
+      node.data.buttons = [
+        { type: "postback", title: "Button 1", payload: "BUTTON_1" },
+      ];
+    }
+    if (type === "carousel") {
+      node.data.text = "";
+      node.data.cards = [
+        {
+          title: "Card title",
+          subtitle: "Card subtitle",
+          imageUrl: "",
+          buttons: [
+            { type: "postback", title: "View", payload: "CARD_VIEW_1" },
+          ],
+        },
+      ];
+    }
     if (type === "condition") {
       node.data.variable = "message";
       node.data.operator = "contains";
@@ -138,6 +224,199 @@ export default function ChatbotFlowsPage() {
   const updateNode = (idx: number, data: Partial<FlowNode["data"]>) => {
     const nodes = [...formData.nodes];
     nodes[idx] = { ...nodes[idx], data: { ...nodes[idx].data, ...data } };
+    setFormData({ ...formData, nodes });
+  };
+
+  const updateQuickReply = (
+    nodeIdx: number,
+    replyIdx: number,
+    patch: Partial<FlowQuickReplyOption>,
+  ) => {
+    const nodes = [...formData.nodes];
+    const quickReplies = [...(nodes[nodeIdx].data.quickReplies || [])];
+    quickReplies[replyIdx] = { ...quickReplies[replyIdx], ...patch };
+    nodes[nodeIdx] = {
+      ...nodes[nodeIdx],
+      data: { ...nodes[nodeIdx].data, quickReplies },
+    };
+    setFormData({ ...formData, nodes });
+  };
+
+  const addQuickReply = (nodeIdx: number) => {
+    const nodes = [...formData.nodes];
+    const quickReplies = [...(nodes[nodeIdx].data.quickReplies || [])];
+    quickReplies.push({
+      title: `Option ${quickReplies.length + 1}`,
+      payload: `OPTION_${quickReplies.length + 1}`,
+    });
+    nodes[nodeIdx] = {
+      ...nodes[nodeIdx],
+      data: { ...nodes[nodeIdx].data, quickReplies },
+    };
+    setFormData({ ...formData, nodes });
+  };
+
+  const removeQuickReply = (nodeIdx: number, replyIdx: number) => {
+    const nodes = [...formData.nodes];
+    const quickReplies = [...(nodes[nodeIdx].data.quickReplies || [])];
+    quickReplies.splice(replyIdx, 1);
+    nodes[nodeIdx] = {
+      ...nodes[nodeIdx],
+      data: { ...nodes[nodeIdx].data, quickReplies },
+    };
+    setFormData({ ...formData, nodes });
+  };
+
+  const updateButton = (
+    nodeIdx: number,
+    buttonIdx: number,
+    patch: Partial<FlowButtonOption>,
+  ) => {
+    const nodes = [...formData.nodes];
+    const buttons = [...(nodes[nodeIdx].data.buttons || [])];
+    const nextButton: FlowButtonOption = { ...buttons[buttonIdx], ...patch };
+    if (nextButton.type === "web_url") {
+      delete nextButton.payload;
+      nextButton.url = nextButton.url || "";
+    } else {
+      delete nextButton.url;
+      nextButton.payload = nextButton.payload || "";
+    }
+    buttons[buttonIdx] = nextButton;
+    nodes[nodeIdx] = {
+      ...nodes[nodeIdx],
+      data: { ...nodes[nodeIdx].data, buttons },
+    };
+    setFormData({ ...formData, nodes });
+  };
+
+  const addButton = (nodeIdx: number) => {
+    const nodes = [...formData.nodes];
+    const buttons = [...(nodes[nodeIdx].data.buttons || [])];
+    buttons.push({
+      type: "postback",
+      title: `Button ${buttons.length + 1}`,
+      payload: `BUTTON_${buttons.length + 1}`,
+    });
+    nodes[nodeIdx] = {
+      ...nodes[nodeIdx],
+      data: { ...nodes[nodeIdx].data, buttons },
+    };
+    setFormData({ ...formData, nodes });
+  };
+
+  const removeButton = (nodeIdx: number, buttonIdx: number) => {
+    const nodes = [...formData.nodes];
+    const buttons = [...(nodes[nodeIdx].data.buttons || [])];
+    buttons.splice(buttonIdx, 1);
+    nodes[nodeIdx] = {
+      ...nodes[nodeIdx],
+      data: { ...nodes[nodeIdx].data, buttons },
+    };
+    setFormData({ ...formData, nodes });
+  };
+
+  const updateCard = (
+    nodeIdx: number,
+    cardIdx: number,
+    patch: Partial<FlowCarouselCard>,
+  ) => {
+    const nodes = [...formData.nodes];
+    const cards = [...(nodes[nodeIdx].data.cards || [])];
+    cards[cardIdx] = { ...cards[cardIdx], ...patch };
+    nodes[nodeIdx] = {
+      ...nodes[nodeIdx],
+      data: { ...nodes[nodeIdx].data, cards },
+    };
+    setFormData({ ...formData, nodes });
+  };
+
+  const addCard = (nodeIdx: number) => {
+    const nodes = [...formData.nodes];
+    const cards = [...(nodes[nodeIdx].data.cards || [])];
+    cards.push({
+      title: `Card ${cards.length + 1}`,
+      subtitle: "",
+      imageUrl: "",
+      buttons: [
+        { type: "postback", title: "View", payload: `CARD_${cards.length + 1}` },
+      ],
+    });
+    nodes[nodeIdx] = {
+      ...nodes[nodeIdx],
+      data: { ...nodes[nodeIdx].data, cards },
+    };
+    setFormData({ ...formData, nodes });
+  };
+
+  const removeCard = (nodeIdx: number, cardIdx: number) => {
+    const nodes = [...formData.nodes];
+    const cards = [...(nodes[nodeIdx].data.cards || [])];
+    cards.splice(cardIdx, 1);
+    nodes[nodeIdx] = {
+      ...nodes[nodeIdx],
+      data: { ...nodes[nodeIdx].data, cards },
+    };
+    setFormData({ ...formData, nodes });
+  };
+
+  const updateCardButton = (
+    nodeIdx: number,
+    cardIdx: number,
+    buttonIdx: number,
+    patch: Partial<FlowButtonOption>,
+  ) => {
+    const nodes = [...formData.nodes];
+    const cards = [...(nodes[nodeIdx].data.cards || [])];
+    const buttons = [...(cards[cardIdx].buttons || [])];
+    const nextButton: FlowButtonOption = { ...buttons[buttonIdx], ...patch };
+    if (nextButton.type === "web_url") {
+      delete nextButton.payload;
+      nextButton.url = nextButton.url || "";
+    } else {
+      delete nextButton.url;
+      nextButton.payload = nextButton.payload || "";
+    }
+    buttons[buttonIdx] = nextButton;
+    cards[cardIdx] = { ...cards[cardIdx], buttons };
+    nodes[nodeIdx] = {
+      ...nodes[nodeIdx],
+      data: { ...nodes[nodeIdx].data, cards },
+    };
+    setFormData({ ...formData, nodes });
+  };
+
+  const addCardButton = (nodeIdx: number, cardIdx: number) => {
+    const nodes = [...formData.nodes];
+    const cards = [...(nodes[nodeIdx].data.cards || [])];
+    const buttons = [...(cards[cardIdx].buttons || [])];
+    buttons.push({
+      type: "postback",
+      title: `Button ${buttons.length + 1}`,
+      payload: `CARD_BTN_${buttons.length + 1}`,
+    });
+    cards[cardIdx] = { ...cards[cardIdx], buttons };
+    nodes[nodeIdx] = {
+      ...nodes[nodeIdx],
+      data: { ...nodes[nodeIdx].data, cards },
+    };
+    setFormData({ ...formData, nodes });
+  };
+
+  const removeCardButton = (
+    nodeIdx: number,
+    cardIdx: number,
+    buttonIdx: number,
+  ) => {
+    const nodes = [...formData.nodes];
+    const cards = [...(nodes[nodeIdx].data.cards || [])];
+    const buttons = [...(cards[cardIdx].buttons || [])];
+    buttons.splice(buttonIdx, 1);
+    cards[cardIdx] = { ...cards[cardIdx], buttons };
+    nodes[nodeIdx] = {
+      ...nodes[nodeIdx],
+      data: { ...nodes[nodeIdx].data, cards },
+    };
     setFormData({ ...formData, nodes });
   };
 
@@ -215,7 +494,7 @@ export default function ChatbotFlowsPage() {
     const result = parseGoogleMapsLink(url);
     if (result) {
       updateNode(idx, { latitude: result.lat, longitude: result.lng });
-      setMapsLinkStatus({ ...mapsLinkStatus, [idx]: "✅ พิกัดถูกดึงสำเร็จ!" });
+      setMapsLinkStatus({ ...mapsLinkStatus, [idx]: "OK: Coordinates detected" });
       setTimeout(
         () =>
           setMapsLinkStatus((s) => {
@@ -228,12 +507,12 @@ export default function ChatbotFlowsPage() {
       return;
     }
 
-    // For short URLs (maps.app.goo.gl etc.) — ask user to use full URL
+    // For short URLs (maps.app.goo.gl etc.), ask user to use full URL.
     if (url.includes("goo.gl") || url.includes("maps.app")) {
       setMapsLinkStatus({
         ...mapsLinkStatus,
         [idx]:
-          "⚠️ Short URL ไม่รองรับ — กรุณาเปิดลิงก์ในเบราว์เซอร์แล้ว copy URL เต็มจาก address bar",
+          "WARN: Short URL is not supported. Open it in browser and copy the full URL from the address bar.",
       });
       setTimeout(
         () =>
@@ -249,7 +528,8 @@ export default function ChatbotFlowsPage() {
 
     setMapsLinkStatus({
       ...mapsLinkStatus,
-      [idx]: "❌ ไม่สามารถดึงพิกัดจากลิงก์นี้ได้ — กรุณาใส่ lat/long ด้วยตนเอง",
+      [idx]:
+        "ERROR: Could not extract coordinates from this link. Please enter lat/long manually.",
     });
     setTimeout(
       () =>
@@ -345,21 +625,113 @@ export default function ChatbotFlowsPage() {
   const nodeTypeIcon = (type: string) => {
     switch (type) {
       case "message":
-        return "💬";
+        return "MSG";
+      case "quick_replies":
+        return "QR";
+      case "buttons":
+        return "BTN";
+      case "carousel":
+        return "CAR";
       case "condition":
-        return "🔀";
+        return "IF";
       case "delay":
-        return "⏱️";
+        return "WAIT";
       case "action":
-        return "⚡";
+        return "ACT";
       case "collect_input":
-        return "📝";
+        return "ASK";
       case "location":
-        return "📍";
+        return "LOC";
       default:
-        return "📌";
+        return "NODE";
     }
   };
+
+  const groupedFlows = useMemo(() => {
+    const groups = new Map<string, ChatbotFlow[]>();
+
+    for (const flow of flows) {
+      const groupKey = inferFlowGroupKey(flow);
+      const current = groups.get(groupKey) || [];
+      current.push(flow);
+      groups.set(groupKey, current);
+    }
+
+    return Array.from(groups.entries()).map(([key, items]) => ({
+      key,
+      label: formatFlowGroupLabel(key),
+      items,
+    }));
+  }, [flows]);
+
+  const selectedGroup = useMemo(
+    () => groupedFlows.find((group) => group.key === selectedGroupKey) || null,
+    [groupedFlows, selectedGroupKey],
+  );
+
+  useEffect(() => {
+    if (
+      selectedGroupKey &&
+      !groupedFlows.some((group) => group.key === selectedGroupKey)
+    ) {
+      setSelectedGroupKey(null);
+    }
+  }, [groupedFlows, selectedGroupKey]);
+
+  const renderFlowCard = (f: ChatbotFlow) => (
+    <div
+      key={f.id}
+      className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-5 border border-white/40 hover:shadow-2xl transition-all duration-200"
+    >
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="font-bold text-gray-900 text-lg">{f.name}</h3>
+        <button
+          onClick={() => toggleFlow(f.id)}
+          className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${f.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
+        >
+          {f.isActive ? "Active" : "Inactive"}
+        </button>
+      </div>
+      {f.description && <p className="text-gray-600 text-sm mb-2">{f.description}</p>}
+      <div className="flex flex-wrap gap-1 mb-3">
+        {(f.triggerKeywords || []).map((kw) => (
+          <span
+            key={kw}
+            className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-medium"
+          >
+            #{kw}
+          </span>
+        ))}
+      </div>
+      <div className="flex items-center gap-1 text-sm text-gray-500 mb-3">
+        {(f.nodes || []).map((n, i) => (
+          <span key={n.id} className="flex items-center gap-1">
+            {nodeTypeIcon(n.type)}
+            {i < f.nodes.length - 1 && (
+              <span className="text-gray-300">-&gt;</span>
+            )}
+          </span>
+        ))}
+        {(!f.nodes || f.nodes.length === 0) && (
+          <span className="text-gray-400 italic">No nodes</span>
+        )}
+      </div>
+      <div className="flex gap-2 pt-3 border-t border-gray-100">
+        <button
+          onClick={() => editFlow(f)}
+          className="flex-1 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-sm font-semibold transition-all"
+        >
+          Edit
+        </button>
+        <button
+          onClick={() => deleteFlow(f.id)}
+          className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-semibold transition-all"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 p-4 sm:p-6 lg:p-8 overflow-auto relative">
@@ -404,15 +776,23 @@ export default function ChatbotFlowsPage() {
         {showForm && (
           <div
             className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={resetForm}
           >
             <div
               className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="text-xl font-bold text-gray-900 mb-4">
-                {editingFlow ? "Edit Flow" : "Create Flow"}
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {editingFlow ? "Edit Flow" : "Create Flow"}
+                </h2>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="w-8 h-8 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-all"
+                  aria-label="Close modal"
+                >
+                  X
+                </button>
+              </div>
               <form onSubmit={saveFlow} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -512,13 +892,13 @@ export default function ChatbotFlowsPage() {
                             />
                             <div>
                               <label className="text-xs text-gray-500 font-medium">
-                                🖼️ Image (optional)
+                                Image (optional)
                               </label>
                               <div className="flex gap-2 mt-1">
                                 <input
                                   value={
                                     node.data.imageUrl?.startsWith("/uploads")
-                                      ? `✅ ${node.data.imageUrl.split("/").pop()}`
+                                      ? `Uploaded: ${node.data.imageUrl.split("/").pop()}`
                                       : node.data.imageUrl || ""
                                   }
                                   onChange={(e) =>
@@ -553,8 +933,8 @@ export default function ChatbotFlowsPage() {
                                   className="px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg text-sm font-medium transition-all disabled:opacity-50 whitespace-nowrap"
                                 >
                                   {uploadingIdx === idx
-                                    ? "⏳ Uploading..."
-                                    : "📤 Upload"}
+                                    ? "Uploading..."
+                                    : "Upload"}
                                 </button>
                                 {node.data.imageUrl && (
                                   <button
@@ -565,7 +945,7 @@ export default function ChatbotFlowsPage() {
                                     className="px-2 py-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg text-sm transition-all"
                                     title="Remove image"
                                   >
-                                    ✕
+                                    X
                                   </button>
                                 )}
                               </div>
@@ -580,6 +960,318 @@ export default function ChatbotFlowsPage() {
                                 />
                               )}
                             </div>
+                          </div>
+                        )}
+                        {node.type === "quick_replies" && (
+                          <div className="space-y-3">
+                            <textarea
+                              value={node.data.text || ""}
+                              onChange={(e) =>
+                                updateNode(idx, { text: e.target.value })
+                              }
+                              rows={2}
+                              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-1 focus:ring-amber-500 outline-none resize-none"
+                              placeholder="Prompt text..."
+                            />
+                            <div className="space-y-2">
+                              {(node.data.quickReplies || []).map(
+                                (reply, replyIdx) => (
+                                  <div
+                                    key={`${node.id}-qr-${replyIdx}`}
+                                    className="grid grid-cols-12 gap-2"
+                                  >
+                                    <input
+                                      value={reply.title || ""}
+                                      onChange={(e) =>
+                                        updateQuickReply(idx, replyIdx, {
+                                          title: e.target.value,
+                                        })
+                                      }
+                                      className="col-span-5 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-900"
+                                      placeholder="Title"
+                                    />
+                                    <input
+                                      value={reply.payload || ""}
+                                      onChange={(e) =>
+                                        updateQuickReply(idx, replyIdx, {
+                                          payload: e.target.value,
+                                        })
+                                      }
+                                      className="col-span-6 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-900"
+                                      placeholder="Payload (e.g. MENU_A)"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        removeQuickReply(idx, replyIdx)
+                                      }
+                                      className="col-span-1 text-red-500 hover:text-red-700 text-sm"
+                                    >
+                                      X
+                                    </button>
+                                  </div>
+                                ),
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => addQuickReply(idx)}
+                              className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg text-xs font-medium"
+                            >
+                              + Add Quick Reply
+                            </button>
+                          </div>
+                        )}
+                        {node.type === "buttons" && (
+                          <div className="space-y-3">
+                            <textarea
+                              value={node.data.text || ""}
+                              onChange={(e) =>
+                                updateNode(idx, { text: e.target.value })
+                              }
+                              rows={2}
+                              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-1 focus:ring-amber-500 outline-none resize-none"
+                              placeholder="Button template text..."
+                            />
+                            <div className="space-y-2">
+                              {(node.data.buttons || []).map(
+                                (button, buttonIdx) => (
+                                  <div
+                                    key={`${node.id}-btn-${buttonIdx}`}
+                                    className="grid grid-cols-12 gap-2"
+                                  >
+                                    <select
+                                      value={button.type || "postback"}
+                                      onChange={(e) =>
+                                        updateButton(idx, buttonIdx, {
+                                          type: e.target.value as
+                                            | "postback"
+                                            | "web_url",
+                                        })
+                                      }
+                                      className="col-span-3 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-900"
+                                    >
+                                      <option value="postback">postback</option>
+                                      <option value="web_url">web_url</option>
+                                    </select>
+                                    <input
+                                      value={button.title || ""}
+                                      onChange={(e) =>
+                                        updateButton(idx, buttonIdx, {
+                                          title: e.target.value,
+                                        })
+                                      }
+                                      className="col-span-4 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-900"
+                                      placeholder="Button title"
+                                    />
+                                    <input
+                                      value={
+                                        button.type === "web_url"
+                                          ? button.url || ""
+                                          : button.payload || ""
+                                      }
+                                      onChange={(e) =>
+                                        button.type === "web_url"
+                                          ? updateButton(idx, buttonIdx, {
+                                              url: e.target.value,
+                                            })
+                                          : updateButton(idx, buttonIdx, {
+                                              payload: e.target.value,
+                                            })
+                                      }
+                                      className="col-span-4 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-900"
+                                      placeholder={
+                                        button.type === "web_url"
+                                          ? "https://example.com"
+                                          : "PAYLOAD_VALUE"
+                                      }
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => removeButton(idx, buttonIdx)}
+                                      className="col-span-1 text-red-500 hover:text-red-700 text-sm"
+                                    >
+                                      X
+                                    </button>
+                                  </div>
+                                ),
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => addButton(idx)}
+                              className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg text-xs font-medium"
+                            >
+                              + Add Button
+                            </button>
+                          </div>
+                        )}
+                        {node.type === "carousel" && (
+                          <div className="space-y-3">
+                            <textarea
+                              value={node.data.text || ""}
+                              onChange={(e) =>
+                                updateNode(idx, { text: e.target.value })
+                              }
+                              rows={2}
+                              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-1 focus:ring-amber-500 outline-none resize-none"
+                              placeholder="Intro text (optional)"
+                            />
+                            <div className="space-y-3">
+                              {(node.data.cards || []).map((card, cardIdx) => (
+                                <div
+                                  key={`${node.id}-card-${cardIdx}`}
+                                  className="border border-gray-200 rounded-lg p-3 space-y-2 bg-gray-50"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-semibold text-gray-600">
+                                      Card {cardIdx + 1}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeCard(idx, cardIdx)}
+                                      className="text-xs text-red-500 hover:text-red-700"
+                                    >
+                                      Remove Card
+                                    </button>
+                                  </div>
+                                  <input
+                                    value={card.title || ""}
+                                    onChange={(e) =>
+                                      updateCard(idx, cardIdx, {
+                                        title: e.target.value,
+                                      })
+                                    }
+                                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-900"
+                                    placeholder="Card title"
+                                  />
+                                  <input
+                                    value={card.subtitle || ""}
+                                    onChange={(e) =>
+                                      updateCard(idx, cardIdx, {
+                                        subtitle: e.target.value,
+                                      })
+                                    }
+                                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-900"
+                                    placeholder="Card subtitle"
+                                  />
+                                  <input
+                                    value={card.imageUrl || ""}
+                                    onChange={(e) =>
+                                      updateCard(idx, cardIdx, {
+                                        imageUrl: e.target.value,
+                                      })
+                                    }
+                                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-900"
+                                    placeholder="Image URL (optional)"
+                                  />
+                                  <div className="space-y-2">
+                                    {(card.buttons || []).map(
+                                      (button, buttonIdx) => (
+                                        <div
+                                          key={`${node.id}-card-${cardIdx}-btn-${buttonIdx}`}
+                                          className="grid grid-cols-12 gap-2"
+                                        >
+                                          <select
+                                            value={button.type || "postback"}
+                                            onChange={(e) =>
+                                              updateCardButton(
+                                                idx,
+                                                cardIdx,
+                                                buttonIdx,
+                                                {
+                                                  type: e.target.value as
+                                                    | "postback"
+                                                    | "web_url",
+                                                },
+                                              )
+                                            }
+                                            className="col-span-3 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-900"
+                                          >
+                                            <option value="postback">
+                                              postback
+                                            </option>
+                                            <option value="web_url">
+                                              web_url
+                                            </option>
+                                          </select>
+                                          <input
+                                            value={button.title || ""}
+                                            onChange={(e) =>
+                                              updateCardButton(
+                                                idx,
+                                                cardIdx,
+                                                buttonIdx,
+                                                { title: e.target.value },
+                                              )
+                                            }
+                                            className="col-span-4 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-900"
+                                            placeholder="Button title"
+                                          />
+                                          <input
+                                            value={
+                                              button.type === "web_url"
+                                                ? button.url || ""
+                                                : button.payload || ""
+                                            }
+                                            onChange={(e) =>
+                                              button.type === "web_url"
+                                                ? updateCardButton(
+                                                    idx,
+                                                    cardIdx,
+                                                    buttonIdx,
+                                                    { url: e.target.value },
+                                                  )
+                                                : updateCardButton(
+                                                    idx,
+                                                    cardIdx,
+                                                    buttonIdx,
+                                                    {
+                                                      payload: e.target.value,
+                                                    },
+                                                  )
+                                            }
+                                            className="col-span-4 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-900"
+                                            placeholder={
+                                              button.type === "web_url"
+                                                ? "https://example.com"
+                                                : "PAYLOAD_VALUE"
+                                            }
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              removeCardButton(
+                                                idx,
+                                                cardIdx,
+                                                buttonIdx,
+                                              )
+                                            }
+                                            className="col-span-1 text-red-500 hover:text-red-700 text-sm"
+                                          >
+                                            X
+                                          </button>
+                                        </div>
+                                      ),
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => addCardButton(idx, cardIdx)}
+                                    className="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded text-xs font-medium"
+                                  >
+                                    + Add Card Button
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => addCard(idx)}
+                              className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg text-xs font-medium"
+                            >
+                              + Add Card
+                            </button>
                           </div>
                         )}
                         {node.type === "condition" && (
@@ -674,7 +1366,7 @@ export default function ChatbotFlowsPage() {
                           <div className="space-y-2">
                             <div>
                               <label className="text-xs text-gray-500 font-medium">
-                                🔗 Paste Google Maps Link (auto-fill lat/long)
+                                Paste Google Maps Link (auto-fill lat/long)
                               </label>
                               <input
                                 className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 mt-1 focus:ring-1 focus:ring-amber-500 outline-none"
@@ -695,7 +1387,7 @@ export default function ChatbotFlowsPage() {
                               />
                               {mapsLinkStatus[idx] && (
                                 <p
-                                  className={`text-xs mt-1 ${mapsLinkStatus[idx].startsWith("✅") ? "text-green-600" : mapsLinkStatus[idx].startsWith("⚠️") ? "text-amber-600" : "text-red-500"}`}
+                                  className={`text-xs mt-1 ${mapsLinkStatus[idx].startsWith("OK:") ? "text-green-600" : mapsLinkStatus[idx].startsWith("WARN:") ? "text-amber-600" : "text-red-500"}`}
                                 >
                                   {mapsLinkStatus[idx]}
                                 </p>
@@ -704,7 +1396,7 @@ export default function ChatbotFlowsPage() {
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <label className="text-xs text-gray-500 font-medium">
-                                  🏢 Location Name
+                                  Location Name
                                 </label>
                                 <input
                                   value={node.data.locationName || ""}
@@ -719,7 +1411,7 @@ export default function ChatbotFlowsPage() {
                               </div>
                               <div>
                                 <label className="text-xs text-gray-500 font-medium">
-                                  📍 Address
+                                  Address
                                 </label>
                                 <input
                                   value={node.data.locationAddress || ""}
@@ -777,7 +1469,7 @@ export default function ChatbotFlowsPage() {
                                 rel="noopener noreferrer"
                                 className="text-xs text-amber-600 hover:text-amber-700 underline"
                               >
-                                🗺️ Preview on Google Maps
+                                Preview on Google Maps
                               </a>
                             ) : null}
                           </div>
@@ -834,7 +1526,7 @@ export default function ChatbotFlowsPage() {
           </div>
         ) : flows.length === 0 ? (
           <div className="text-center py-20 bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/40">
-            <div className="text-6xl mb-4">🤖</div>
+            <div className="text-5xl font-bold text-amber-500 mb-4">Flow</div>
             <h3 className="text-xl font-semibold text-gray-700 mb-2">
               No Chatbot Flows Yet
             </h3>
@@ -848,67 +1540,63 @@ export default function ChatbotFlowsPage() {
               Create Flow
             </button>
           </div>
+        ) : !selectedGroup ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {groupedFlows.map((group) => {
+              const activeCount = group.items.filter((item) => item.isActive).length;
+              return (
+                <button
+                  key={group.key}
+                  type="button"
+                  onClick={() => setSelectedGroupKey(group.key)}
+                  className="text-left bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-5 border border-white/40 hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-200"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h2 className="text-lg font-bold text-gray-900">
+                      Group: {group.label}
+                    </h2>
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
+                      {group.items.length}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-1">
+                    {activeCount} active / {group.items.length} total
+                  </p>
+                  <p className="text-xs text-gray-500">Click to open group</p>
+                </button>
+              );
+            })}
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {flows.map((f) => (
-              <div
-                key={f.id}
-                className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-5 border border-white/40 hover:shadow-2xl transition-all duration-200"
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedGroupKey(null)}
+                className="px-3 py-2 bg-white/80 hover:bg-white text-gray-700 rounded-lg text-sm font-semibold border border-white/50 shadow-sm transition-all"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-bold text-gray-900 text-lg">{f.name}</h3>
-                  <button
-                    onClick={() => toggleFlow(f.id)}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${f.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
-                  >
-                    {f.isActive ? "● Active" : "○ Inactive"}
-                  </button>
-                </div>
-                {f.description && (
-                  <p className="text-gray-600 text-sm mb-2">{f.description}</p>
-                )}
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {(f.triggerKeywords || []).map((kw) => (
-                    <span
-                      key={kw}
-                      className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-medium"
-                    >
-                      #{kw}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center gap-1 text-sm text-gray-500 mb-3">
-                  {(f.nodes || []).map((n, i) => (
-                    <span key={n.id} className="flex items-center gap-1">
-                      {nodeTypeIcon(n.type)}
-                      {i < f.nodes.length - 1 && (
-                        <span className="text-gray-300">→</span>
-                      )}
-                    </span>
-                  ))}
-                  {(!f.nodes || f.nodes.length === 0) && (
-                    <span className="text-gray-400 italic">No nodes</span>
-                  )}
-                </div>
-                <div className="flex gap-2 pt-3 border-t border-gray-100">
-                  <button
-                    onClick={() => editFlow(f)}
-                    className="flex-1 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-sm font-semibold transition-all"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deleteFlow(f.id)}
-                    className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-semibold transition-all"
-                  >
-                    Delete
-                  </button>
-                </div>
+                Back to Groups
+              </button>
+              <div className="text-right">
+                <h2 className="text-lg font-bold text-gray-800">
+                  Group: {selectedGroup.label}
+                </h2>
+                <p className="text-sm text-gray-600">
+                  {selectedGroup.items.length} flow
+                  {selectedGroup.items.length > 1 ? "s" : ""}
+                </p>
               </div>
-            ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {selectedGroup.items.map((flow) => renderFlowCard(flow))}
+            </div>
           </div>
         )}
       </div>
     </div>
   );
 }
+
+
+
