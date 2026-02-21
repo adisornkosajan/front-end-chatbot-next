@@ -155,7 +155,7 @@ export default function ConnectionsPage() {
       name: 'WhatsApp',
       icon: '💬',
       color: 'from-green-600 to-green-700',
-      description: 'Connect your WhatsApp Business',
+      description: 'Connect via Meta OAuth or Manual setup',
       onClick: () => handleConnectPlatform('whatsapp'),
     },
   ];
@@ -657,17 +657,44 @@ export default function ConnectionsPage() {
               <div className="p-6">
                 <h3 className="text-xl font-bold text-gray-800 mb-2">{platform.name}</h3>
                 <p className="text-gray-600 text-sm mb-4">{platform.description}</p>
-                <button
-                  onClick={() => platform.onClick()}
-                  disabled={loading}
-                  className={`w-full px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
-                    loading
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg'
-                  }`}
-                >
-                  {loading ? 'Loading...' : `Connect ${platform.name}`}
-                </button>
+                {platform.id === 'whatsapp' ? (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => handleMetaConnect('whatsapp')}
+                      disabled={loading}
+                      className={`w-full px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                        loading
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-md hover:shadow-lg'
+                      }`}
+                    >
+                      {loading ? 'Loading...' : 'Connect via Meta OAuth'}
+                    </button>
+                    <button
+                      onClick={() => setShowWhatsAppModal(true)}
+                      disabled={loading}
+                      className={`w-full px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                        loading
+                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-green-700 border-2 border-green-600 hover:bg-green-50'
+                      }`}
+                    >
+                      Manual Setup
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => platform.onClick()}
+                    disabled={loading}
+                    className={`w-full px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                      loading
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg'
+                    }`}
+                  >
+                    {loading ? 'Loading...' : `Connect ${platform.name}`}
+                  </button>
+                )}
               </div>
             </div>
           ))}
